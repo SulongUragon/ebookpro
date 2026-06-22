@@ -19,6 +19,7 @@ app.post("/api/generate-ebook", async (req, res) => {
       topic,
       audience,
       promise,
+      coverSubtitle,
       language = "Taglish",
       style = "Luxury Black and Gold",
       price = "$27",
@@ -35,6 +36,7 @@ app.post("/api/generate-ebook", async (req, res) => {
       topic,
       audience,
       promise,
+      coverSubtitle,
       language,
       style,
       price,
@@ -94,6 +96,10 @@ IMPORTANT DESIGN RULES:
 - Portrait ebook cover composition
 - Premium digital product look
 - Clean, high-end, modern layout
+- The cover must clearly include both the title and subtitle
+- Title must be large and dominant
+- Subtitle must appear below the title in smaller readable typography
+- Use this exact subtitle text if provided: ${subtitle || ""}
 - Strong buyer-attracting visual
 - No mockup
 - No laptop
@@ -145,6 +151,7 @@ INPUT DETAILS:
 Topic: ${input.topic}
 Target Audience: ${input.audience}
 Main Promise: ${input.promise}
+Preferred Cover Subtitle: ${input.coverSubtitle || ""}
 Language: ${input.language}
 Visual Style: ${input.style}
 Price Positioning: ${input.price}
@@ -161,6 +168,7 @@ Make the output specific, premium, practical, and buyer-attracting.
 Avoid generic advice.
 Use USD pricing logic.
 Make the ebook feel sellable as a digital product.
+If Preferred Cover Subtitle is provided, use it as the selectedSubtitle or strongly align with it.
 
 Return this exact JSON structure:
 

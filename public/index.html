@@ -31,6 +31,11 @@
         </div>
 
         <div>
+          <label class="font-bold text-sm">Cover Subtitle</label>
+          <input id="coverSubtitle" class="w-full mt-1 border rounded-xl p-3" value="Create, Package, and Launch Your First Sellable Digital Product in 30 Days" placeholder="Create, Package, and Launch Your First Sellable Digital Product in 30 Days">
+        </div>
+
+        <div>
           <label class="font-bold text-sm">Language</label>
           <select id="language" class="w-full mt-1 border rounded-xl p-3">
             <option value="English">English</option>
@@ -205,6 +210,7 @@
         topic: getValue("topic"),
         audience: getValue("audience"),
         promise: getValue("promise"),
+        coverSubtitle: getValue("coverSubtitle"),
         language: getValue("language"),
         style: getValue("style"),
         price: getValue("price") || "$27",
@@ -263,7 +269,7 @@
           },
           body: JSON.stringify({
             title: lastData.titles?.selectedTitle || "",
-            subtitle: lastData.titles?.selectedSubtitle || "",
+            subtitle: getValue("coverSubtitle") || lastData.titles?.selectedSubtitle || "",
             coverPrompt: lastData.coverConcept?.aiCoverPrompt || "",
             style: getValue("style")
           })
