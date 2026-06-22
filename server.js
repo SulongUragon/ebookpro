@@ -138,6 +138,59 @@ IMPORTANT DESIGN RULES:
   }
 });
 
+app.post("/api/generate-bundle-assets", async (req, res) => {
+  try {
+    const {
+      topic,
+      audience,
+      promise,
+      coverSubtitle,
+      language = "Taglish",
+      style = "Luxury Black and Gold",
+      price = "$27",
+      depth = "Premium Paid Ebook",
+      title = "",
+      subtitle = ""
+    } = req.body;
+
+    if (!topic || !audience || !promise) {
+      return res.status(400).json({
+        error: "Topic, audience, and promise are required."
+      });
+    }
+
+    const prompt = buildBundleAssetsPrompt({
+      topic,
+      audience,
+      promise,
+      coverSubtitle,
+      language,
+      style,
+      price,
+      depth,
+      title,
+      subtitle
+    });
+
+    const response = await client.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.5",
+      input: prompt
+    });
+
+    const text = response.output_text;
+    const json = extractJson(text);
+
+    res.json(json);
+  } catch (error) {
+    console.error("Bundle assets generation error:", error);
+
+    res.status(500).json({
+      error: "Failed to generate bundle assets.",
+      details: error.message
+    });
+  }
+});
+
 function buildEbookPrompt(input) {
   return `
 You are an elite premium ebook strategist, digital product creator, conversion copywriter, curriculum designer, brand designer, visual director, Canva/Figma layout planner, and AI image prompt engineer.
@@ -302,6 +355,115 @@ CONTENT REQUIREMENTS:
 - Include chapter image prompts.
 - Include sales assets.
 - Make the ebook feel like a complete paid digital product package.
+`;
+}
+
+function buildBundleAssetsPrompt(input) {
+  return `
+You are a premium digital product strategist, ebook packager, workbook designer, launch copywriter, and AI prompt engineer.
+
+Create 8 separate bundle assets for the current ebook/product idea.
+
+These are companion assets, not a full ebook rewrite.
+Keep each asset focused, practical, premium, and ready to copy into Canva, Google Docs, or PDF.
+
+INPUT DETAILS:
+Topic: ${input.topic}
+Audience: ${input.audience}
+Main Promise: ${input.promise}
+Preferred Cover Subtitle: ${input.coverSubtitle || ""}
+Language: ${input.language}
+Style: ${input.style}
+Price Positioning: ${input.price}
+Ebook Type: ${input.depth}
+Current Title: ${input.title || ""}
+Current Subtitle: ${input.subtitle || ""}
+
+CRITICAL OUTPUT RULES:
+Return ONLY valid JSON.
+No markdown.
+No code fences.
+No explanation outside JSON.
+Write in ${input.language}.
+Use USD-friendly, premium digital product language.
+Do not regenerate the full ebook or cover image.
+
+Return this exact JSON structure:
+
+{
+  "mainEbook": {
+    "title": "",
+    "subtitle": "",
+    "purpose": "",
+    "copyReadyIntro": "",
+    "keySections": [],
+    "designNotes": ""
+  },
+  "workbook": {
+    "title": "",
+    "purpose": "",
+    "pages": [],
+    "prompts": [],
+    "fields": [],
+    "designNotes": ""
+  },
+  "promptPack": {
+    "title": "",
+    "purpose": "",
+    "promptCategories": [],
+    "doneForYouPrompts": [],
+    "customizationTips": [],
+    "designNotes": ""
+  },
+  "thirtyDayActionPlan": {
+    "title": "",
+    "purpose": "",
+    "weekByWeekPlan": [],
+    "dailyActions": [],
+    "milestones": [],
+    "designNotes": ""
+  },
+  "digitalProductIdeaBank": {
+    "title": "",
+    "purpose": "",
+    "ideaCategories": [],
+    "readyToSellIdeas": [],
+    "validationCriteria": [],
+    "designNotes": ""
+  },
+  "launchCaptionTemplates": {
+    "title": "",
+    "purpose": "",
+    "captionTypes": [],
+    "templateCaptions": [],
+    "ctaVariations": [],
+    "designNotes": ""
+  },
+  "salesPageCopyTemplate": {
+    "title": "",
+    "purpose": "",
+    "sections": [],
+    "headlineOptions": [],
+    "bulletBenefitAngles": [],
+    "ctaOptions": [],
+    "designNotes": ""
+  },
+  "aiCoverPromptPack": {
+    "title": "",
+    "purpose": "",
+    "coverPromptVariations": [],
+    "subtitleDirections": [],
+    "styleVariations": [],
+    "designNotes": ""
+  }
+}
+
+CONTENT REQUIREMENTS:
+- Generate 8 complete bundle assets.
+- Make each asset distinct and useful.
+- Keep the workbook, prompt pack, action plan, idea bank, caption templates, sales page template, and AI cover prompt pack highly practical.
+- Include the preferred cover subtitle where appropriate.
+- The output should be immediately usable as a separate asset bundle.
 `;
 }
 

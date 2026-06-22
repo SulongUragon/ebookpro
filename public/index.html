@@ -139,9 +139,17 @@
               Generate / Regenerate Cover
             </button>
 
+              <button id="generateBundleBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl p-4">
+                Generate Bundle Assets
+              </button>
+
             <div id="coverLoading" class="hidden bg-emerald-50 border border-emerald-100 text-emerald-900 rounded-2xl p-4 text-center font-bold">
               Generating cover...
             </div>
+
+              <div id="bundleLoading" class="hidden bg-indigo-50 border border-indigo-100 text-indigo-900 rounded-2xl p-4 text-center font-bold">
+                Generating bundle assets...
+              </div>
 
             <img id="coverImagePreview" class="hidden w-full max-w-md mx-auto rounded-2xl border shadow-2xl" alt="Generated ebook cover">
 
@@ -183,6 +191,14 @@
         </div>
 
         <div class="bg-white rounded-3xl p-8 shadow-xl">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <h3 class="text-2xl font-black">Bundle Assets</h3>
+            <button id="copyBundleBtn" class="bg-slate-950 text-white font-black rounded-xl px-4 py-3 text-sm">Copy Bundle JSON</button>
+          </div>
+          <div id="bundleAssets" class="space-y-4"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl">
           <h3 class="text-2xl font-black mb-4">Final Pages</h3>
           <div id="finalPages" class="space-y-4"></div>
         </div>
@@ -198,10 +214,12 @@
 
   <script>
     let lastData = null;
+    let lastBundleData = null;
 
     const form = document.getElementById("ebookForm");
     const generateBtn = document.getElementById("generateBtn");
     const generateCoverBtn = document.getElementById("generateCoverBtn");
+    const generateBundleBtn = document.getElementById("generateBundleBtn");
 
     form.addEventListener("submit", async function(event) {
       event.preventDefault();
@@ -295,6 +313,56 @@
       }
     });
 
+    document.getElementById("generateBundleBtn").addEventListener("click", async function() {
+      if (!lastData) {
+        alert("Generate the ebook first before creating bundle assets.");
+        return;
+      }
+
+      const button = document.getElementById("generateBundleBtn");
+      const loading = document.getElementById("bundleLoading");
+
+      button.disabled = true;
+      button.textContent = "Generating bundle assets...";
+      loading.classList.remove("hidden");
+
+      try {
+        const response = await fetch("/api/generate-bundle-assets", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            topic: getValue("topic"),
+            audience: getValue("audience"),
+            promise: getValue("promise"),
+            coverSubtitle: getValue("coverSubtitle"),
+            language: getValue("language"),
+            style: getValue("style"),
+            price: getValue("price") || "$27",
+            depth: getValue("depth"),
+            title: lastData.titles?.selectedTitle || "",
+            subtitle: getValue("coverSubtitle") || lastData.titles?.selectedSubtitle || ""
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.details || data.error || "Bundle asset generation failed.");
+        }
+
+        lastBundleData = data;
+        renderBundleAssets(data);
+      } catch (error) {
+        alert("Bundle Error: " + error.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = "Generate Bundle Assets";
+        loading.classList.add("hidden");
+      }
+    });
+
     document.getElementById("copyCoverBtn").addEventListener("click", function() {
       copyText(document.getElementById("coverPrompt").textContent);
     });
@@ -302,6 +370,11 @@
     document.getElementById("copyJsonBtn").addEventListener("click", function() {
       if (!lastData) return;
       copyText(JSON.stringify(lastData, null, 2));
+    });
+
+    document.getElementById("copyBundleBtn").addEventListener("click", function() {
+      if (!lastBundleData) return;
+      copyText(JSON.stringify(lastBundleData, null, 2));
     });
 
     document.getElementById("printBtn").addEventListener("click", function() {
@@ -352,7 +425,10 @@
       document.getElementById("downloadCoverBtn").href = "";
       document.getElementById("coverLoading").classList.add("hidden");
       generateCoverBtn.disabled = false;
-      generateCoverBtn.textContent = "Generate Actual Cover Image";
+      generateCoverBtn.textContent = "Generate / Regenerate Cover";
+      document.getElementById("bundleLoading").classList.add("hidden");
+      generateBundleBtn.disabled = false;
+      generateBundleBtn.textContent = "Generate Bundle Assets";
     }
 
     function renderData(data) {
@@ -369,6 +445,7 @@
       renderFrameworks(data.frameworks || []);
       renderWorksheets(data.worksheets || []);
       renderSalesAssets(data.salesAssets || {});
+      renderBundleAssets(data.bundleAssets || {});
       renderFinalPages(data.finalPages || {});
     }
 
@@ -521,6 +598,71 @@
       addListSection(box, "Bonus Ideas", sales.bonusIdeas || []);
       addDetail(box, "Launch Post", sales.launchPost);
       addDetail(box, "DM Sales Script", sales.dmSalesScript);
+    }
+
+    function renderBundleAssets(bundle) {
+      const box = document.getElementById("bundleAssets");
+      clear(box);
+
+      const hasAssets = bundle && Object.keys(bundle).some(function(key) {
+        return bundle[key] && typeof bundle[key] === "object";
+      });
+
+      if (!hasAssets) {
+        const empty = document.createElement("div");
+        empty.className = "bg-slate-50 border border-slate-200 rounded-2xl p-5 text-slate-500";
+        empty.textContent = "Generate the bundle assets to see the separate content blocks here.";
+        box.appendChild(empty);
+        return;
+      }
+
+      const assets = [
+        ["Main Ebook", bundle.mainEbook],
+        ["Workbook", bundle.workbook],
+        ["Prompt Pack", bundle.promptPack],
+        ["30-Day Action Plan", bundle.thirtyDayActionPlan],
+        ["Digital Product Idea Bank", bundle.digitalProductIdeaBank],
+        ["Launch Caption Templates", bundle.launchCaptionTemplates],
+        ["Sales Page Copy Template", bundle.salesPageCopyTemplate],
+        ["Bonus: AI Cover Prompt Pack", bundle.aiCoverPromptPack]
+      ];
+
+      assets.forEach(function(entry) {
+        const label = entry[0];
+        const asset = entry[1] || {};
+        const card = createCard();
+
+        addHeading(card, label);
+        addDetail(card, "Title", asset.title);
+        addDetail(card, "Purpose", asset.purpose);
+        addParagraph(card, asset.copyReadyIntro);
+        addListSection(card, "Key Sections", asset.keySections || []);
+        addListSection(card, "Pages", asset.pages || []);
+        addListSection(card, "Prompts", asset.prompts || []);
+        addListSection(card, "Prompt Categories", asset.promptCategories || []);
+        addListSection(card, "Done-For-You Prompts", asset.doneForYouPrompts || []);
+        addListSection(card, "Customization Tips", asset.customizationTips || []);
+        addListSection(card, "Week-by-Week Plan", asset.weekByWeekPlan || []);
+        addListSection(card, "Daily Actions", asset.dailyActions || []);
+        addListSection(card, "Milestones", asset.milestones || []);
+        addListSection(card, "Idea Categories", asset.ideaCategories || []);
+        addListSection(card, "Ready-to-Sell Ideas", asset.readyToSellIdeas || []);
+        addListSection(card, "Validation Criteria", asset.validationCriteria || []);
+        addListSection(card, "Caption Types", asset.captionTypes || []);
+        addListSection(card, "Template Captions", asset.templateCaptions || []);
+        addListSection(card, "CTA Variations", asset.ctaVariations || []);
+        addListSection(card, "Sections", asset.sections || []);
+        addListSection(card, "Headline Options", asset.headlineOptions || []);
+        addListSection(card, "Bullet Benefit Angles", asset.bulletBenefitAngles || []);
+        addListSection(card, "CTA Options", asset.ctaOptions || []);
+        addListSection(card, "Cover Prompt Variations", asset.coverPromptVariations || []);
+        addListSection(card, "Subtitle Directions", asset.subtitleDirections || []);
+        addListSection(card, "Style Variations", asset.styleVariations || []);
+        addListSection(card, "Fields", asset.fields || []);
+        addDetail(card, "Design Notes", asset.designNotes);
+
+        box.appendChild(card);
+      });
     }
 
     function renderFinalPages(finalPages) {
