@@ -193,7 +193,10 @@
         <div class="bg-white rounded-3xl p-8 shadow-xl">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
             <h3 class="text-2xl font-black">Bundle Assets</h3>
-            <button id="copyBundleBtn" class="bg-slate-950 text-white font-black rounded-xl px-4 py-3 text-sm">Copy Bundle JSON</button>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <button id="downloadBundleJsonBtn" class="bg-indigo-600 text-white font-black rounded-xl px-4 py-3 text-sm">Download All Bundle JSON</button>
+              <button id="copyBundleBtn" class="bg-slate-950 text-white font-black rounded-xl px-4 py-3 text-sm">Copy Bundle JSON</button>
+            </div>
           </div>
           <div id="bundleAssets" class="space-y-4"></div>
         </div>
@@ -375,6 +378,15 @@
     document.getElementById("copyBundleBtn").addEventListener("click", function() {
       if (!lastBundleData) return;
       copyText(JSON.stringify(lastBundleData, null, 2));
+    });
+
+    document.getElementById("downloadBundleJsonBtn").addEventListener("click", function() {
+      if (!lastBundleData) {
+        alert("Generate bundle assets first.");
+        return;
+      }
+
+      downloadTextFile("bundle-assets.json", JSON.stringify(lastBundleData, null, 2), "application/json");
     });
 
     document.getElementById("printBtn").addEventListener("click", function() {
@@ -617,52 +629,175 @@
       }
 
       const assets = [
-        ["Main Ebook", bundle.mainEbook],
-        ["Workbook", bundle.workbook],
-        ["Prompt Pack", bundle.promptPack],
-        ["30-Day Action Plan", bundle.thirtyDayActionPlan],
-        ["Digital Product Idea Bank", bundle.digitalProductIdeaBank],
-        ["Launch Caption Templates", bundle.launchCaptionTemplates],
-        ["Sales Page Copy Template", bundle.salesPageCopyTemplate],
-        ["Bonus: AI Cover Prompt Pack", bundle.aiCoverPromptPack]
+        ["Main Ebook", bundle.mainEbook, "Download Main Ebook", "01-main-ebook.txt"],
+        ["Workbook", bundle.workbook, "Download Workbook", "02-workbook.txt"],
+        ["Prompt Pack", bundle.promptPack, "Download Prompt Pack", "03-prompt-pack.txt"],
+        ["30-Day Action Plan", bundle.thirtyDayActionPlan, "Download 30-Day Action Plan", "04-30-day-action-plan.txt"],
+        ["Digital Product Idea Bank", bundle.digitalProductIdeaBank, "Download Digital Product Idea Bank", "05-digital-product-idea-bank.txt"],
+        ["Launch Caption Templates", bundle.launchCaptionTemplates, "Download Launch Caption Templates", "06-launch-caption-templates.txt"],
+        ["Sales Page Copy Template", bundle.salesPageCopyTemplate, "Download Sales Page Copy Template", "07-sales-page-copy-template.txt"],
+        ["Bonus: AI Cover Prompt Pack", bundle.aiCoverPromptPack, "Download AI Cover Prompt Pack", "08-ai-cover-prompt-pack.txt"]
       ];
 
       assets.forEach(function(entry) {
         const label = entry[0];
         const asset = entry[1] || {};
+        const downloadLabel = entry[2];
+        const fileName = entry[3];
         const card = createCard();
 
-        addHeading(card, label);
-        addDetail(card, "Title", asset.title);
-        addDetail(card, "Purpose", asset.purpose);
-        addParagraph(card, asset.copyReadyIntro);
-        addListSection(card, "Key Sections", asset.keySections || []);
-        addListSection(card, "Pages", asset.pages || []);
-        addListSection(card, "Prompts", asset.prompts || []);
-        addListSection(card, "Prompt Categories", asset.promptCategories || []);
-        addListSection(card, "Done-For-You Prompts", asset.doneForYouPrompts || []);
-        addListSection(card, "Customization Tips", asset.customizationTips || []);
-        addListSection(card, "Week-by-Week Plan", asset.weekByWeekPlan || []);
-        addListSection(card, "Daily Actions", asset.dailyActions || []);
-        addListSection(card, "Milestones", asset.milestones || []);
-        addListSection(card, "Idea Categories", asset.ideaCategories || []);
-        addListSection(card, "Ready-to-Sell Ideas", asset.readyToSellIdeas || []);
-        addListSection(card, "Validation Criteria", asset.validationCriteria || []);
-        addListSection(card, "Caption Types", asset.captionTypes || []);
-        addListSection(card, "Template Captions", asset.templateCaptions || []);
-        addListSection(card, "CTA Variations", asset.ctaVariations || []);
-        addListSection(card, "Sections", asset.sections || []);
-        addListSection(card, "Headline Options", asset.headlineOptions || []);
-        addListSection(card, "Bullet Benefit Angles", asset.bulletBenefitAngles || []);
-        addListSection(card, "CTA Options", asset.ctaOptions || []);
-        addListSection(card, "Cover Prompt Variations", asset.coverPromptVariations || []);
-        addListSection(card, "Subtitle Directions", asset.subtitleDirections || []);
-        addListSection(card, "Style Variations", asset.styleVariations || []);
-        addListSection(card, "Fields", asset.fields || []);
-        addDetail(card, "Design Notes", asset.designNotes);
+        const header = document.createElement("div");
+        header.className = "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4";
+
+        const heading = document.createElement("h4");
+        heading.className = "font-black text-xl";
+        heading.textContent = label;
+
+        const dlBtn = document.createElement("button");
+        dlBtn.className = "bg-slate-950 text-white font-black rounded-xl px-4 py-2 text-sm shrink-0";
+        dlBtn.textContent = downloadLabel;
+        dlBtn.addEventListener("click", function() {
+          downloadTextFile(fileName, assetToText(label, asset), "text/plain");
+        });
+
+        header.appendChild(heading);
+        header.appendChild(dlBtn);
+        card.appendChild(header);
+
+        Object.keys(asset).forEach(function(key) {
+          renderAssetField(card, key, asset[key]);
+        });
 
         box.appendChild(card);
       });
+    }
+
+    function renderAssetField(parent, label, value) {
+      if (value === undefined || value === null || value === "") return;
+      if (Array.isArray(value) && value.length === 0) return;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "bg-white rounded-xl border border-slate-200 p-4 mb-3";
+
+      const lbl = document.createElement("p");
+      lbl.className = "text-xs font-black uppercase text-slate-400 mb-2";
+      lbl.textContent = label.replace(/([A-Z])/g, " $1").replace(/^./, function(s) { return s.toUpperCase(); });
+      wrapper.appendChild(lbl);
+
+      renderNestedValue(wrapper, value);
+      parent.appendChild(wrapper);
+    }
+
+    function renderNestedValue(parent, value) {
+      if (value === null || value === undefined) return;
+
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        const p = document.createElement("p");
+        p.className = "text-slate-700 leading-relaxed whitespace-pre-wrap";
+        p.textContent = String(value);
+        parent.appendChild(p);
+        return;
+      }
+
+      if (Array.isArray(value)) {
+        if (value.length === 0) return;
+        const ul = document.createElement("ul");
+        ul.className = "list-disc pl-5 space-y-2 text-slate-700";
+        value.forEach(function(item) {
+          const li = document.createElement("li");
+          if (item !== null && typeof item === "object") {
+            const group = document.createElement("div");
+            group.className = "space-y-1";
+            Object.keys(item).forEach(function(k) {
+              const line = document.createElement("div");
+              const keySpan = document.createElement("span");
+              keySpan.className = "text-xs font-black uppercase text-slate-400 mr-1";
+              keySpan.textContent = k + ":";
+              const valSpan = document.createElement("span");
+              valSpan.className = "text-slate-700";
+              const v = item[k];
+              valSpan.textContent = (v !== null && typeof v === "object") ? JSON.stringify(v) : String(v ?? "");
+              line.appendChild(keySpan);
+              line.appendChild(valSpan);
+              group.appendChild(line);
+            });
+            li.appendChild(group);
+          } else {
+            li.textContent = String(item ?? "");
+          }
+          ul.appendChild(li);
+        });
+        parent.appendChild(ul);
+        return;
+      }
+
+      if (typeof value === "object") {
+        const group = document.createElement("div");
+        group.className = "space-y-2";
+        Object.keys(value).forEach(function(k) {
+          const row = document.createElement("div");
+          row.className = "border-l-2 border-slate-200 pl-3";
+          const keyEl = document.createElement("p");
+          keyEl.className = "text-xs font-black uppercase text-slate-400 mb-1";
+          keyEl.textContent = k;
+          row.appendChild(keyEl);
+          renderNestedValue(row, value[k]);
+          group.appendChild(row);
+        });
+        parent.appendChild(group);
+      }
+    }
+
+    function assetToText(label, asset) {
+      var lines = [label.toUpperCase(), ""];
+
+      function flattenValue(value, indent) {
+        indent = indent || "";
+        if (value === null || value === undefined || value === "") return "";
+        if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+          return indent + String(value);
+        }
+        if (Array.isArray(value)) {
+          return value.map(function(item) {
+            if (item !== null && typeof item === "object") {
+              return Object.keys(item).map(function(k) {
+                return indent + "  " + k + ": " + flattenValue(item[k], "");
+              }).join("\n");
+            }
+            return indent + "- " + String(item ?? "");
+          }).join("\n");
+        }
+        if (typeof value === "object") {
+          return Object.keys(value).map(function(k) {
+            return indent + k + ": " + flattenValue(value[k], "");
+          }).join("\n");
+        }
+        return String(value);
+      }
+
+      Object.keys(asset || {}).forEach(function(key) {
+        var value = asset[key];
+        if (value === undefined || value === null || value === "") return;
+        if (Array.isArray(value) && value.length === 0) return;
+        lines.push(key + ":");
+        lines.push(flattenValue(value, "  "));
+        lines.push("");
+      });
+
+      return lines.join("\n").trim() + "\n";
+    }
+
+    function downloadTextFile(fileName, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType || "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
 
     function renderFinalPages(finalPages) {
