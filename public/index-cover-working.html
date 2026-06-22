@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Premium Ebook Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-950 min-h-screen text-slate-900">
+  <div class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <section class="lg:col-span-4 bg-white rounded-3xl p-6 shadow-xl h-fit sticky top-6">
+      <h1 class="text-3xl font-black mb-2">EbookStrategist AI</h1>
+      <p class="text-slate-500 mb-6">Premium ebook + cover package builder.</p>
+
+      <form id="ebookForm" class="space-y-4">
+        <div>
+          <label class="font-bold text-sm">Ebook Topic</label>
+          <input id="topic" required class="w-full mt-1 border rounded-xl p-3" placeholder="Digital Product Business">
+        </div>
+
+        <div>
+          <label class="font-bold text-sm">Target Audience</label>
+          <input id="audience" required class="w-full mt-1 border rounded-xl p-3" placeholder="Creators, coaches, or beginners">
+        </div>
+
+        <div>
+          <label class="font-bold text-sm">Main Promise</label>
+          <input id="promise" required class="w-full mt-1 border rounded-xl p-3" placeholder="Build and sell their first digital product">
+        </div>
+
+        <div>
+          <label class="font-bold text-sm">Language</label>
+          <select id="language" class="w-full mt-1 border rounded-xl p-3">
+            <option value="English">English</option>
+            <option value="Taglish">Taglish</option>
+            <option value="Filipino">Filipino</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="font-bold text-sm">Premium Style</label>
+          <select id="style" class="w-full mt-1 border rounded-xl p-3">
+            <option value="Luxury Black and Gold">Luxury Black and Gold</option>
+            <option value="Clean Minimalist Premium">Clean Minimalist Premium</option>
+            <option value="Bold Creator Brand">Bold Creator Brand</option>
+            <option value="Modern Agency Style">Modern Agency Style</option>
+            <option value="California Creator Brand">California Creator Brand</option>
+            <option value="Filipino Digital Seller Style">Filipino Digital Seller Style</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="font-bold text-sm">Price Positioning</label>
+          <input id="price" class="w-full mt-1 border rounded-xl p-3" value="$27" placeholder="$9, $17, $27, $47, $97">
+        </div>
+
+        <div>
+          <label class="font-bold text-sm">Ebook Type</label>
+          <select id="depth" class="w-full mt-1 border rounded-xl p-3">
+            <option value="Premium Paid Ebook">Premium Paid Ebook</option>
+            <option value="Workbook Toolkit">Workbook Toolkit</option>
+            <option value="Lead Magnet">Lead Magnet</option>
+            <option value="Course Companion">Course Companion</option>
+            <option value="Authority Guide">Authority Guide</option>
+          </select>
+        </div>
+
+        <button id="generateBtn" type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl p-4">
+          Generate Ebook Package
+        </button>
+      </form>
+
+      <div class="mt-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-sm text-indigo-900">
+        <strong>Package deal:</strong> ebook strategy, chapters, worksheets, sales assets, cover prompt, and actual AI cover image.
+      </div>
+    </section>
+
+    <section class="lg:col-span-8">
+      <div id="emptyState" class="bg-white rounded-3xl p-10 shadow-xl min-h-[500px] flex flex-col justify-center">
+        <p class="text-indigo-600 font-black uppercase tracking-widest text-xs mb-3">Ready</p>
+        <h2 class="text-4xl font-black mb-3">Create a premium ebook package.</h2>
+        <p class="text-slate-500 leading-relaxed">
+          Fill the form, then generate your ebook product, cover direction, actual cover image, frameworks, worksheets, and sales assets.
+        </p>
+      </div>
+
+      <div id="loadingState" class="hidden bg-white rounded-3xl p-10 shadow-xl min-h-[500px] flex flex-col items-center justify-center text-center">
+        <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-6"></div>
+        <h2 class="text-3xl font-black mb-2">Building your ebook package...</h2>
+        <p class="text-slate-500">Generating strategy, content, visuals, worksheets, and sales assets.</p>
+      </div>
+
+      <div id="results" class="hidden space-y-6">
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl">
+          <p class="text-indigo-600 font-black uppercase tracking-widest text-xs mb-3">Strategic Overview</p>
+          <h2 id="selectedTitle" class="text-4xl font-black mb-2"></h2>
+          <p id="selectedSubtitle" class="text-slate-500 text-lg mb-6"></p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-slate-50 rounded-2xl p-5">
+              <p class="text-xs font-black uppercase text-slate-400 mb-2">Best Angle</p>
+              <p id="bestAngle" class="text-slate-700 leading-relaxed"></p>
+            </div>
+
+            <div class="bg-slate-50 rounded-2xl p-5">
+              <p class="text-xs font-black uppercase text-slate-400 mb-2">Target Buyer</p>
+              <p id="targetBuyer" class="text-slate-700 leading-relaxed"></p>
+            </div>
+
+            <div class="bg-indigo-50 rounded-2xl p-5 md:col-span-2">
+              <p class="text-xs font-black uppercase text-indigo-400 mb-2">Primary Promise</p>
+              <p id="primaryPromise" class="text-indigo-800 font-bold leading-relaxed"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl">
+          <h3 class="text-2xl font-black mb-4">Cover Concept + Actual Cover</h3>
+          <div id="coverDetails" class="space-y-4"></div>
+
+          <div class="mt-6 bg-slate-950 rounded-2xl p-5">
+            <div class="flex justify-between items-center mb-3">
+              <p class="text-xs font-black uppercase text-slate-400">AI Cover Prompt</p>
+              <button id="copyCoverBtn" class="text-xs bg-white/10 text-white rounded-lg px-3 py-1">Copy</button>
+            </div>
+            <p id="coverPrompt" class="text-emerald-300 whitespace-pre-wrap text-sm leading-relaxed"></p>
+          </div>
+
+          <div class="mt-6 space-y-4">
+            <button id="generateCoverBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl p-4">
+              Generate Actual Cover Image
+            </button>
+
+            <div id="coverLoading" class="hidden bg-emerald-50 border border-emerald-100 text-emerald-900 rounded-2xl p-4 text-center font-bold">
+              Generating cover image...
+            </div>
+
+            <img id="coverImagePreview" class="hidden w-full max-w-md mx-auto rounded-2xl border shadow-2xl" alt="Generated ebook cover">
+
+            <a id="downloadCoverBtn" class="hidden block text-center bg-slate-950 text-white font-black rounded-xl p-4" download="ebook-cover.png">
+              Download Cover Image
+            </a>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl">
+          <h3 class="text-2xl font-black mb-4">Visual Identity</h3>
+          <div id="colorPalette" class="flex gap-3 mb-5"></div>
+          <div id="visualDetails" class="space-y-4"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl">
+          <h3 class="text-2xl font-black mb-4">Table of Contents</h3>
+          <div id="tocList" class="space-y-4"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl">
+          <h3 class="text-2xl font-black mb-4">Chapters</h3>
+          <div id="chapterList" class="space-y-5"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl">
+          <h3 class="text-2xl font-black mb-4">Premium Frameworks</h3>
+          <div id="frameworkList" class="space-y-4"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl">
+          <h3 class="text-2xl font-black mb-4">Worksheets</h3>
+          <div id="worksheetList" class="space-y-4"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl">
+          <h3 class="text-2xl font-black mb-4">Sales Assets</h3>
+          <div id="salesAssets" class="space-y-4"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-8 shadow-xl">
+          <h3 class="text-2xl font-black mb-4">Final Pages</h3>
+          <div id="finalPages" class="space-y-4"></div>
+        </div>
+
+        <div class="bg-white rounded-3xl p-6 shadow-xl flex flex-col md:flex-row gap-3">
+          <button id="copyJsonBtn" class="flex-1 bg-slate-950 text-white font-black rounded-xl p-4">Copy Full JSON</button>
+          <button id="printBtn" class="flex-1 bg-indigo-600 text-white font-black rounded-xl p-4">Print / Save PDF</button>
+          <button id="resetBtn" class="flex-1 bg-slate-200 text-slate-900 font-black rounded-xl p-4">Start New</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    let lastData = null;
+
+    const form = document.getElementById("ebookForm");
+    const generateBtn = document.getElementById("generateBtn");
+    const generateCoverBtn = document.getElementById("generateCoverBtn");
+
+    form.addEventListener("submit", async function(event) {
+      event.preventDefault();
+
+      const payload = {
+        topic: getValue("topic"),
+        audience: getValue("audience"),
+        promise: getValue("promise"),
+        language: getValue("language"),
+        style: getValue("style"),
+        price: getValue("price") || "$27",
+        depth: getValue("depth")
+      };
+
+      showLoading();
+
+      try {
+        const response = await fetch("/api/generate-ebook", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.details || data.error || "Generation failed.");
+        }
+
+        lastData = data;
+        resetCoverImage();
+        renderData(data);
+        showResults();
+      } catch (error) {
+        alert("Error: " + error.message);
+        showEmpty();
+      } finally {
+        setGenerating(false);
+      }
+    });
+
+    document.getElementById("generateCoverBtn").addEventListener("click", async function() {
+      if (!lastData) {
+        alert("Generate the ebook first before creating the cover.");
+        return;
+      }
+
+      const button = document.getElementById("generateCoverBtn");
+      const loading = document.getElementById("coverLoading");
+      const imagePreview = document.getElementById("coverImagePreview");
+      const downloadBtn = document.getElementById("downloadCoverBtn");
+
+      button.disabled = true;
+      button.textContent = "Generating cover...";
+      loading.classList.remove("hidden");
+
+      try {
+        const response = await fetch("/api/generate-cover", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            title: lastData.titles?.selectedTitle || "",
+            subtitle: lastData.titles?.selectedSubtitle || "",
+            coverPrompt: lastData.coverConcept?.aiCoverPrompt || "",
+            style: getValue("style")
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.details || data.error || "Cover generation failed.");
+        }
+
+        imagePreview.src = data.imageUrl;
+        imagePreview.classList.remove("hidden");
+
+        downloadBtn.href = data.imageUrl;
+        downloadBtn.classList.remove("hidden");
+      } catch (error) {
+        alert("Cover Error: " + error.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = "Generate Actual Cover Image";
+        loading.classList.add("hidden");
+      }
+    });
+
+    document.getElementById("copyCoverBtn").addEventListener("click", function() {
+      copyText(document.getElementById("coverPrompt").textContent);
+    });
+
+    document.getElementById("copyJsonBtn").addEventListener("click", function() {
+      if (!lastData) return;
+      copyText(JSON.stringify(lastData, null, 2));
+    });
+
+    document.getElementById("printBtn").addEventListener("click", function() {
+      window.print();
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", function() {
+      form.reset();
+      lastData = null;
+      resetCoverImage();
+      showEmpty();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    function getValue(id) {
+      return document.getElementById(id).value.trim();
+    }
+
+    function showLoading() {
+      setGenerating(true);
+      document.getElementById("emptyState").classList.add("hidden");
+      document.getElementById("results").classList.add("hidden");
+      document.getElementById("loadingState").classList.remove("hidden");
+    }
+
+    function showResults() {
+      document.getElementById("emptyState").classList.add("hidden");
+      document.getElementById("loadingState").classList.add("hidden");
+      document.getElementById("results").classList.remove("hidden");
+    }
+
+    function showEmpty() {
+      document.getElementById("emptyState").classList.remove("hidden");
+      document.getElementById("loadingState").classList.add("hidden");
+      document.getElementById("results").classList.add("hidden");
+    }
+
+    function setGenerating(isGenerating) {
+      generateBtn.disabled = isGenerating;
+      generateBtn.textContent = isGenerating ? "Generating..." : "Generate Ebook Package";
+      generateBtn.classList.toggle("opacity-60", isGenerating);
+    }
+
+    function resetCoverImage() {
+      document.getElementById("coverImagePreview").classList.add("hidden");
+      document.getElementById("coverImagePreview").src = "";
+      document.getElementById("downloadCoverBtn").classList.add("hidden");
+      document.getElementById("downloadCoverBtn").href = "";
+      document.getElementById("coverLoading").classList.add("hidden");
+      generateCoverBtn.disabled = false;
+      generateCoverBtn.textContent = "Generate Actual Cover Image";
+    }
+
+    function renderData(data) {
+      setText("selectedTitle", data.titles && data.titles.selectedTitle);
+      setText("selectedSubtitle", data.titles && data.titles.selectedSubtitle);
+      setText("bestAngle", data.strategy && data.strategy.bestAngle);
+      setText("targetBuyer", data.strategy && data.strategy.targetBuyer);
+      setText("primaryPromise", data.strategy && data.strategy.primaryPromise);
+
+      renderCover(data.coverConcept || {});
+      renderVisual(data.visualIdentity || {}, data.coverConcept || {});
+      renderTOC(data.tableOfContents || []);
+      renderChapters(data.chapters || []);
+      renderFrameworks(data.frameworks || []);
+      renderWorksheets(data.worksheets || []);
+      renderSalesAssets(data.salesAssets || {});
+      renderFinalPages(data.finalPages || {});
+    }
+
+    function renderCover(cover) {
+      const box = document.getElementById("coverDetails");
+      clear(box);
+
+      addDetail(box, "Visual Theme", cover.visualTheme);
+      addDetail(box, "Title Placement", cover.titlePlacement);
+      addDetail(box, "Subtitle Placement", cover.subtitlePlacement);
+      addDetail(box, "Background Style", cover.backgroundStyle);
+      addDetail(box, "Font Direction", cover.fontDirection);
+      addDetail(box, "Image Idea", cover.imageIdea);
+      addDetail(box, "Mood", cover.mood);
+      addDetail(box, "Buyer Attraction Reason", cover.buyerAttractionReason);
+
+      setText("coverPrompt", cover.aiCoverPrompt);
+    }
+
+    function renderVisual(visual, cover) {
+      const paletteBox = document.getElementById("colorPalette");
+      clear(paletteBox);
+
+      const colors = cover.colorPalette || [];
+
+      colors.forEach(function(color) {
+        const swatch = document.createElement("div");
+        swatch.className = "w-14 h-14 rounded-2xl border shadow";
+        swatch.style.backgroundColor = color.hex || "#4f46e5";
+        swatch.title = (color.name || "") + " " + (color.hex || "");
+        paletteBox.appendChild(swatch);
+      });
+
+      const box = document.getElementById("visualDetails");
+      clear(box);
+
+      addDetail(box, "Brand Feel", visual.brandFeel);
+      addDetail(box, "Font Pairing", visual.fontPairing);
+      addDetail(box, "Icon Style", visual.iconStyle);
+      addDetail(box, "Illustration Style", visual.illustrationStyle);
+      addDetail(box, "Photo Style", visual.photoStyle);
+      addDetail(box, "Page Layout Style", visual.pageLayoutStyle);
+      addDetail(box, "Section Divider Style", visual.sectionDividerStyle);
+      addDetail(box, "Callout Box Style", visual.calloutBoxStyle);
+      addDetail(box, "Quote Box Style", visual.quoteBoxStyle);
+      addDetail(box, "Worksheet Style", visual.worksheetStyle);
+      addListSection(box, "Premium Design Rules", visual.premiumDesignRules || []);
+    }
+
+    function renderTOC(items) {
+      const box = document.getElementById("tocList");
+      clear(box);
+
+      items.forEach(function(item, index) {
+        const card = createCard();
+        const title = document.createElement("h4");
+        const desc = document.createElement("p");
+
+        title.className = "font-black text-lg";
+        desc.className = "text-slate-600 mt-1 leading-relaxed";
+
+        title.textContent = (index + 1) + ". " + (item.chapterTitle || "Untitled Chapter");
+        desc.textContent = item.readerOutcome || item.chapterPromise || "";
+
+        card.appendChild(title);
+        card.appendChild(desc);
+        box.appendChild(card);
+      });
+    }
+
+    function renderChapters(chapters) {
+      const box = document.getElementById("chapterList");
+      clear(box);
+
+      chapters.forEach(function(chapter) {
+        const card = createCard();
+
+        addHeading(card, chapter.chapterTitle || "Untitled Chapter");
+        addParagraph(card, chapter.opening);
+        addDetail(card, "Purpose", chapter.chapterPurpose);
+        addDetail(card, "Core Lesson", chapter.coreLesson);
+        addListSection(card, "Practical Examples", chapter.practicalExamples || []);
+        addListSection(card, "Step-by-Step Process", chapter.stepByStepProcess || []);
+        addListSection(card, "Common Mistakes", chapter.commonMistakes || []);
+        addListSection(card, "Action Checklist", chapter.actionChecklist || []);
+
+        if (chapter.miniWorksheet) {
+          addDetail(card, "Mini Worksheet", chapter.miniWorksheet.title);
+          addDetail(card, "Worksheet Instructions", chapter.miniWorksheet.instructions);
+          addListSection(card, "Worksheet Fields", chapter.miniWorksheet.fields || []);
+        }
+
+        addDetail(card, "Key Takeaway", chapter.keyTakeaway);
+
+        if (chapter.visualDirections) {
+          addDetail(card, "Hero Image Idea", chapter.visualDirections.heroImageIdea);
+          addListSection(card, "Supporting Graphics", chapter.visualDirections.supportingGraphics || []);
+          addDetail(card, "Infographic Idea", chapter.visualDirections.infographicIdea);
+          addDetail(card, "Diagram Idea", chapter.visualDirections.diagramIdea);
+          addListSection(card, "AI Image Prompts", chapter.visualDirections.aiImagePrompts || []);
+        }
+
+        box.appendChild(card);
+      });
+    }
+
+    function renderFrameworks(items) {
+      const box = document.getElementById("frameworkList");
+      clear(box);
+
+      items.forEach(function(item) {
+        const card = createCard();
+        addHeading(card, item.name || "Untitled Framework");
+        addDetail(card, "Purpose", item.purpose);
+        addDetail(card, "Explanation", item.explanation);
+        addDetail(card, "How To Use", item.howToUse);
+        addDetail(card, "Visual Layout", item.visualLayout);
+        addDetail(card, "Design Direction", item.designDirection);
+        addDetail(card, "AI Graphic Prompt", item.aiGraphicPrompt);
+        box.appendChild(card);
+      });
+    }
+
+    function renderWorksheets(items) {
+      const box = document.getElementById("worksheetList");
+      clear(box);
+
+      items.forEach(function(item) {
+        const card = createCard();
+        addHeading(card, item.title || "Untitled Worksheet");
+        addDetail(card, "Type", item.type);
+        addDetail(card, "Purpose", item.purpose);
+        addDetail(card, "Instructions", item.instructions);
+        addListSection(card, "Fields", item.fields || []);
+        addDetail(card, "Design Notes", item.designNotes);
+        box.appendChild(card);
+      });
+    }
+
+    function renderSalesAssets(sales) {
+      const box = document.getElementById("salesAssets");
+      clear(box);
+
+      addDetail(box, "Product Description", sales.productDescription);
+      addDetail(box, "Short Sales Caption", sales.shortSalesCaption);
+      addDetail(box, "Long Sales Caption", sales.longSalesCaption);
+      addDetail(box, "Landing Page Headline", sales.landingPageHeadline);
+      addDetail(box, "Landing Page Subheadline", sales.landingPageSubheadline);
+      addListSection(box, "Bullet Benefits", sales.bulletBenefits || []);
+      addListSection(box, "Bonus Ideas", sales.bonusIdeas || []);
+      addDetail(box, "Launch Post", sales.launchPost);
+      addDetail(box, "DM Sales Script", sales.dmSalesScript);
+    }
+
+    function renderFinalPages(finalPages) {
+      const box = document.getElementById("finalPages");
+      clear(box);
+
+      addDetail(box, "Welcome Letter", finalPages.welcomeLetter);
+      addDetail(box, "How To Use This Ebook", finalPages.howToUseThisEbook);
+      addDetail(box, "Quick Win Section", finalPages.quickWinSection);
+      addListSection(box, "Final Action Plan", finalPages.finalActionPlan || []);
+      addDetail(box, "Closing Message", finalPages.closingMessage);
+      addDetail(box, "Final CTA", finalPages.finalCTA);
+      addDetail(box, "Back Cover Copy", finalPages.backCoverCopy);
+    }
+
+    function createCard() {
+      const card = document.createElement("div");
+      card.className = "bg-slate-50 border border-slate-200 rounded-2xl p-5";
+      return card;
+    }
+
+    function addHeading(parent, text) {
+      if (!text) return;
+      const h = document.createElement("h4");
+      h.className = "font-black text-xl mb-3";
+      h.textContent = text;
+      parent.appendChild(h);
+    }
+
+    function addParagraph(parent, text) {
+      if (!text) return;
+      const p = document.createElement("p");
+      p.className = "text-slate-600 leading-relaxed mb-4 whitespace-pre-wrap";
+      p.textContent = text;
+      parent.appendChild(p);
+    }
+
+    function addDetail(parent, label, value) {
+      if (!value) return;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "bg-white rounded-xl border border-slate-200 p-4 mb-3";
+
+      const small = document.createElement("p");
+      small.className = "text-xs font-black uppercase text-slate-400 mb-1";
+      small.textContent = label;
+
+      const text = document.createElement("p");
+      text.className = "text-slate-700 leading-relaxed whitespace-pre-wrap";
+      text.textContent = value;
+
+      wrapper.appendChild(small);
+      wrapper.appendChild(text);
+      parent.appendChild(wrapper);
+    }
+
+    function addListSection(parent, label, items) {
+      if (!items || !items.length) return;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "bg-white rounded-xl border border-slate-200 p-4 mb-3";
+
+      const small = document.createElement("p");
+      small.className = "text-xs font-black uppercase text-slate-400 mb-2";
+      small.textContent = label;
+
+      const list = document.createElement("ul");
+      list.className = "list-disc pl-5 space-y-2 text-slate-700";
+
+      items.forEach(function(item) {
+        const li = document.createElement("li");
+        li.textContent = item;
+        list.appendChild(li);
+      });
+
+      wrapper.appendChild(small);
+      wrapper.appendChild(list);
+      parent.appendChild(wrapper);
+    }
+
+    function clear(element) {
+      element.innerHTML = "";
+    }
+
+    function setText(id, value) {
+      document.getElementById(id).textContent = value || "";
+    }
+
+    function copyText(text) {
+      if (!text) {
+        alert("Nothing to copy.");
+        return;
+      }
+
+      navigator.clipboard.writeText(text).then(function() {
+        alert("Copied.");
+      });
+    }
+  </script>
+</body>
+</html>
