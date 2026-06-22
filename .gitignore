@@ -1,3 +1,12 @@
-node_modules
+node_modules/
 .env
 .DS_Store
+
+public/index-before-cover-upgrade.html
+public/index-cover-working.html
+public/index-premium-working.html
+public/index-test.html
+public/index-usd-working.html
+
+server-before-cover-upgrade.js
+server-cover-working.js
