@@ -36,6 +36,23 @@
         </div>
 
         <div>
+          <label class="font-bold text-sm">Cover Calibration</label>
+          <select id="coverCalibration" class="w-full mt-1 border rounded-xl p-3">
+            <option value="Glossy Bundle Mockup" selected>Glossy Bundle Mockup</option>
+            <option value="California Vibrant">California Vibrant</option>
+            <option value="Luxury Gold">Luxury Gold</option>
+            <option value="Clean Minimal">Clean Minimal</option>
+            <option value="Text-Safe Cover">Text-Safe Cover</option>
+            <option value="Background Only">Background Only</option>
+          </select>
+        </div>
+
+        <label class="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <input id="textAccuracyMode" type="checkbox" checked class="w-4 h-4 accent-indigo-600">
+          <span class="font-bold text-sm">Prioritize accurate title/subtitle text</span>
+        </label>
+
+        <div>
           <label class="font-bold text-sm">Language</label>
           <select id="language" class="w-full mt-1 border rounded-xl p-3">
             <option value="English">English</option>
@@ -138,23 +155,6 @@
             <button id="generateCoverBtn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl p-4">
               Generate / Regenerate Cover
             </button>
-
-            <div>
-              <label class="font-bold text-sm">Cover Calibration</label>
-              <select id="coverCalibration" class="w-full mt-1 border rounded-xl p-3">
-                <option value="Glossy Bundle Mockup" selected>Glossy Bundle Mockup</option>
-                <option value="California Vibrant">California Vibrant</option>
-                <option value="Luxury Gold">Luxury Gold</option>
-                <option value="Clean Minimal">Clean Minimal</option>
-                <option value="Text-Safe Cover">Text-Safe Cover</option>
-                <option value="Background Only">Background Only</option>
-              </select>
-            </div>
-
-            <label class="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
-              <input id="textAccuracyMode" type="checkbox" checked class="w-4 h-4 accent-indigo-600">
-              <span class="font-bold text-sm">Prioritize accurate title/subtitle text</span>
-            </label>
 
               <button id="generateBundleBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl p-4">
                 Generate Bundle Assets
