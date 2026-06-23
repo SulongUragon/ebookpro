@@ -139,6 +139,23 @@
               Generate / Regenerate Cover
             </button>
 
+            <div>
+              <label class="font-bold text-sm">Cover Calibration</label>
+              <select id="coverCalibration" class="w-full mt-1 border rounded-xl p-3">
+                <option value="Glossy Bundle Mockup" selected>Glossy Bundle Mockup</option>
+                <option value="California Vibrant">California Vibrant</option>
+                <option value="Luxury Gold">Luxury Gold</option>
+                <option value="Clean Minimal">Clean Minimal</option>
+                <option value="Text-Safe Cover">Text-Safe Cover</option>
+                <option value="Background Only">Background Only</option>
+              </select>
+            </div>
+
+            <label class="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <input id="textAccuracyMode" type="checkbox" checked class="w-4 h-4 accent-indigo-600">
+              <span class="font-bold text-sm">Prioritize accurate title/subtitle text</span>
+            </label>
+
               <button id="generateBundleBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl p-4">
                 Generate Bundle Assets
               </button>
@@ -292,7 +309,9 @@
             title: lastData.titles?.selectedTitle || "",
             subtitle: getValue("coverSubtitle") || lastData.titles?.selectedSubtitle || "",
             coverPrompt: lastData.coverConcept?.aiCoverPrompt || "",
-            style: getValue("style")
+            style: getValue("style"),
+            coverCalibration: getValue("coverCalibration"),
+            textAccuracyMode: document.getElementById("textAccuracyMode").checked
           })
         });
 

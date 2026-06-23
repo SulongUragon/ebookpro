@@ -68,7 +68,9 @@ app.post("/api/generate-cover", async (req, res) => {
       title,
       subtitle,
       coverPrompt,
-      style = "Luxury Black and Gold"
+      style = "Luxury Black and Gold",
+      coverCalibration = "Glossy Bundle Mockup",
+      textAccuracyMode = true
     } = req.body;
 
     if (!coverPrompt) {
@@ -77,41 +79,14 @@ app.post("/api/generate-cover", async (req, res) => {
       });
     }
 
-    const finalPrompt = `
-Create a premium ebook cover image.
-
-EBOOK TITLE:
-${title || ""}
-
-SUBTITLE:
-${subtitle || ""}
-
-STYLE:
-${style}
-
-COVER DIRECTION:
-${coverPrompt}
-
-IMPORTANT DESIGN RULES:
-- Portrait ebook cover composition
-- Premium digital product look
-- Clean, high-end, modern layout
-- The cover must clearly include both the title and subtitle
-- Title must be large and dominant
-- Subtitle must appear below the title in smaller readable typography
-- Use this exact subtitle text if provided: ${subtitle || ""}
-- Strong buyer-attracting visual
-- No mockup
-- No laptop
-- No hands holding the book
-- Leave clean space for title and subtitle
-- Avoid clutter
-- Make it look sellable on Gumroad, Shopify, Stan Store, Etsy, or a landing page
-- High perceived value
-- Professional typography feel
-- Strong visual hierarchy
-- Modern US market digital product aesthetic
-`;
+    const finalPrompt = buildCoverPrompt({
+      title,
+      subtitle,
+      coverPrompt,
+      style,
+      coverCalibration,
+      textAccuracyMode
+    });
 
     const image = await client.images.generate({
       model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
@@ -464,6 +439,85 @@ CONTENT REQUIREMENTS:
 - Keep the workbook, prompt pack, action plan, idea bank, caption templates, sales page template, and AI cover prompt pack highly practical.
 - Include the preferred cover subtitle where appropriate.
 - The output should be immediately usable as a separate asset bundle.
+`;
+}
+
+function buildCoverPrompt(input) {
+  const { title = "", subtitle = "", coverPrompt = "", style = "Luxury Black and Gold", coverCalibration = "Glossy Bundle Mockup", textAccuracyMode = true } = input || {};
+
+  const calibrationInstructions = {
+  "Glossy Bundle Mockup": `
+Make it look like a premium paid starter kit bundle. Use glossy highlights, warm gold/cream lighting, deep navy text, laptop, floating bundle cards, and visible high-value assets. Use only short card labels: AI PROMPTS, WORKBOOK, 30-DAY PLAN, SALES PAGE, LAUNCH CHECKLIST, DIGITAL PRODUCT. No long sentences on cards.
+`,
+  "California Vibrant": `
+Use stronger visual identity colors: electric blue, coral orange, cream/sand, deep navy. Make the cover sharper, more vibrant, and less washed out.
+`,
+  "Luxury Gold": `
+Use warm gold, champagne, deep navy, premium shadows, polished glossy finish, subtle reflections, high perceived value.
+`,
+  "Clean Minimal": `
+Use whitespace, clean layout, soft shadows, simple laptop/product visuals, premium but calm.
+`,
+  "Text-Safe Cover": `
+Prioritize readable exact title and subtitle. Keep all text inside safe margins. No extra text. No random labels. Strong title hierarchy.
+`,
+  "Background Only": `
+Do not include title, subtitle, or any readable text in the image. Generate only the premium cover background/design with laptop, product cards, glossy bundle visuals, and safe empty space where the app can later overlay exact text.
+`
+  };
+
+  const textAccuracyInstructions = textAccuracyMode
+  ? `
+- Use the exact title and subtitle.
+- Title must say exactly: ${title}
+- Subtitle must say exactly: ${subtitle}
+- No typo.
+- No extra random text.
+- Keep all text inside safe margins.
+- Use smaller subtitle text if needed.
+- Do not allow letters to overflow.
+- Do not put long sentences on small cards.
+`
+  : "";
+
+  return `
+Create a premium ebook cover image.
+
+EBOOK TITLE:
+${title || ""}
+
+SUBTITLE:
+${subtitle || ""}
+
+STYLE:
+${style}
+
+COVER PROMPT:
+${coverPrompt || ""}
+
+COVER CALIBRATION PRESET:
+${coverCalibration}
+
+PRESET INSTRUCTIONS:
+${calibrationInstructions[coverCalibration] || calibrationInstructions["Glossy Bundle Mockup"]}
+
+IMPORTANT DESIGN RULES:
+- Portrait ebook cover composition
+- Premium digital product look
+- Clean, high-end, modern layout
+- The cover must clearly include both the title and subtitle unless Background Only is selected
+- Title must be large and dominant unless Background Only is selected
+- Subtitle must appear below the title in smaller readable typography unless Background Only is selected
+- Use this exact subtitle text if provided: ${subtitle || ""}
+- Strong buyer-attracting visual
+- Leave clean space for title and subtitle unless Background Only is selected
+- Avoid clutter
+- Make it look sellable on Gumroad, Shopify, Stan Store, Etsy, or a landing page
+- High perceived value
+- Professional typography feel
+- Strong visual hierarchy
+- Modern US market digital product aesthetic
+${textAccuracyInstructions}
 `;
 }
 
