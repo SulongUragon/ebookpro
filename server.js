@@ -70,6 +70,7 @@ app.post("/api/generate-cover", async (req, res) => {
       coverPrompt,
       style = "Luxury Black and Gold",
       coverCalibration = "Glossy Bundle Mockup",
+      customCoverDirection = "",
       textAccuracyMode = true
     } = req.body;
 
@@ -85,6 +86,7 @@ app.post("/api/generate-cover", async (req, res) => {
       coverPrompt,
       style,
       coverCalibration,
+      customCoverDirection,
       textAccuracyMode
     });
 
@@ -443,7 +445,15 @@ CONTENT REQUIREMENTS:
 }
 
 function buildCoverPrompt(input) {
-  const { title = "", subtitle = "", coverPrompt = "", style = "Luxury Black and Gold", coverCalibration = "Glossy Bundle Mockup", textAccuracyMode = true } = input || {};
+  const {
+    title = "",
+    subtitle = "",
+    coverPrompt = "",
+    style = "Luxury Black and Gold",
+    coverCalibration = "Glossy Bundle Mockup",
+    customCoverDirection = "",
+    textAccuracyMode = true
+  } = input || {};
 
   const calibrationInstructions = {
   "Glossy Bundle Mockup": `
@@ -502,6 +512,8 @@ PRESET INSTRUCTIONS:
 ${calibrationInstructions[coverCalibration] || calibrationInstructions["Glossy Bundle Mockup"]}
 
 IMPORTANT DESIGN RULES:
+- If Custom Cover Direction is provided, treat it as the primary visual direction.
+- Keep the base style and quality rules, but prioritize Custom Cover Direction for composition, mood, and art direction.
 - Portrait ebook cover composition
 - Premium digital product look
 - Clean, high-end, modern layout
@@ -517,6 +529,10 @@ IMPORTANT DESIGN RULES:
 - Professional typography feel
 - Strong visual hierarchy
 - Modern US market digital product aesthetic
+
+CUSTOM COVER DIRECTION (HIGHEST PRIORITY IF PROVIDED):
+${customCoverDirection || "None provided. Follow the cover prompt and preset instructions."}
+
 ${textAccuracyInstructions}
 `;
 }

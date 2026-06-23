@@ -47,6 +47,11 @@
           </select>
         </div>
 
+        <div>
+          <label class="font-bold text-sm">Custom Cover Direction</label>
+          <textarea id="customCoverDirection" class="w-full mt-1 border rounded-xl p-3 min-h-28" placeholder="Paste custom cover prompt or visual direction here..."></textarea>
+        </div>
+
         <label class="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
           <input id="textAccuracyMode" type="checkbox" checked class="w-4 h-4 accent-indigo-600">
           <span class="font-bold text-sm">Prioritize accurate title/subtitle text</span>
@@ -311,6 +316,7 @@
             coverPrompt: lastData.coverConcept?.aiCoverPrompt || "",
             style: getValue("style"),
             coverCalibration: getValue("coverCalibration"),
+            customCoverDirection: getValue("customCoverDirection"),
             textAccuracyMode: document.getElementById("textAccuracyMode").checked
           })
         });
