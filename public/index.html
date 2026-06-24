@@ -31,6 +31,12 @@
         </div>
 
         <div>
+          <label class="font-bold text-sm">Custom Product Brief</label>
+          <p class="text-xs text-slate-500 mt-1 mb-2">Optional. Add specific ideas, topics, bonuses, examples, or sections you want included in the ebook and bundle assets.</p>
+          <textarea id="customProductBrief" class="w-full mt-1 border rounded-xl p-3 min-h-28" placeholder="Example: Include Canva templates, beginner-friendly AI prompts, a 30-day launch checklist, digital product ideas for coaches, and captions for Instagram/TikTok launch posts."></textarea>
+        </div>
+
+        <div>
           <label class="font-bold text-sm">Cover Subtitle</label>
           <input id="coverSubtitle" class="w-full mt-1 border rounded-xl p-3" value="Create, Package, and Launch Your First Sellable Digital Product in 30 Days" placeholder="Create, Package, and Launch Your First Sellable Digital Product in 30 Days">
         </div>
@@ -254,6 +260,7 @@
         topic: getValue("topic"),
         audience: getValue("audience"),
         promise: getValue("promise"),
+        customProductBrief: getValue("customProductBrief"),
         coverSubtitle: getValue("coverSubtitle"),
         language: getValue("language"),
         style: getValue("style"),
@@ -365,6 +372,7 @@
             topic: getValue("topic"),
             audience: getValue("audience"),
             promise: getValue("promise"),
+            customProductBrief: getValue("customProductBrief"),
             coverSubtitle: getValue("coverSubtitle"),
             language: getValue("language"),
             style: getValue("style"),

@@ -19,6 +19,7 @@ app.post("/api/generate-ebook", async (req, res) => {
       topic,
       audience,
       promise,
+      customProductBrief = "",
       coverSubtitle,
       language = "Taglish",
       style = "Luxury Black and Gold",
@@ -36,6 +37,7 @@ app.post("/api/generate-ebook", async (req, res) => {
       topic,
       audience,
       promise,
+      customProductBrief,
       coverSubtitle,
       language,
       style,
@@ -121,6 +123,7 @@ app.post("/api/generate-bundle-assets", async (req, res) => {
       topic,
       audience,
       promise,
+      customProductBrief = "",
       coverSubtitle,
       language = "Taglish",
       style = "Luxury Black and Gold",
@@ -140,6 +143,7 @@ app.post("/api/generate-bundle-assets", async (req, res) => {
       topic,
       audience,
       promise,
+      customProductBrief,
       coverSubtitle,
       language,
       style,
@@ -181,6 +185,8 @@ INPUT DETAILS:
 Topic: ${input.topic}
 Target Audience: ${input.audience}
 Main Promise: ${input.promise}
+Custom Product Brief:
+${input.customProductBrief || "None provided"}
 Preferred Cover Subtitle: ${input.coverSubtitle || ""}
 Language: ${input.language}
 Visual Style: ${input.style}
@@ -198,6 +204,7 @@ Make the output specific, premium, practical, and buyer-attracting.
 Avoid generic advice.
 Use USD pricing logic.
 Make the ebook feel sellable as a digital product.
+Use the custom product brief as high-priority direction. Do not ignore it. Integrate relevant details into the ebook and bundle assets without making the output messy.
 If Preferred Cover Subtitle is provided, use it as the selectedSubtitle or strongly align with it.
 
 Return this exact JSON structure:
@@ -348,6 +355,8 @@ INPUT DETAILS:
 Topic: ${input.topic}
 Audience: ${input.audience}
 Main Promise: ${input.promise}
+Custom Product Brief:
+${input.customProductBrief || "None provided"}
 Preferred Cover Subtitle: ${input.coverSubtitle || ""}
 Language: ${input.language}
 Style: ${input.style}
@@ -364,6 +373,7 @@ No explanation outside JSON.
 Write in ${input.language}.
 Use USD-friendly, premium digital product language.
 Do not regenerate the full ebook or cover image.
+Use the custom product brief as high-priority direction. Do not ignore it. Integrate relevant details into the ebook and bundle assets without making the output messy.
 
 Return this exact JSON structure:
 
