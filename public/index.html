@@ -556,7 +556,7 @@
           root.file("interior-images.json", JSON.stringify({ images: lastInteriorImages }, null, 2));
         }
 
-        const pdfBytes = buildEbookPdfBytes(lastData);
+        const pdfBytes = await buildEbookPdfBytes(lastData);
         root.file("ebook.pdf", pdfBytes);
 
         const coverSrc = document.getElementById("coverImagePreview").src || "";
@@ -1136,20 +1136,85 @@
       };
     }
 
-    function buildEbookPdfBytes(data) {
+    async function buildEbookPdfBytes(data) {
       const jsPDF = window.jspdf.jsPDF;
       const doc = new jsPDF({ unit: "pt", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 40;
       const maxWidth = pageWidth - (margin * 2);
+      const footerSpace = 26;
       let y = margin;
 
+      const palette = {
+        ink: [15, 23, 42],
+        accent: [30, 64, 175],
+        muted: [71, 85, 105],
+        panel: [241, 245, 249]
+      };
+
+      function newPage() {
+        doc.addPage();
+        y = margin;
+      }
+
       function ensureSpace(required) {
-        if (y + required > pageHeight - margin) {
-          doc.addPage();
-          y = margin;
+        if (y + required > pageHeight - margin - footerSpace) {
+          newPage();
         }
+      }
+
+      function addCoverPage() {
+        const title = data.titles?.selectedTitle || getValue("topic") || "Ebook Package";
+        const subtitle = data.titles?.selectedSubtitle || getValue("coverSubtitle") || "";
+        const topic = getValue("topic") || title;
+
+        doc.setFillColor(palette.panel[0], palette.panel[1], palette.panel[2]);
+        doc.rect(0, 0, pageWidth, pageHeight, "F");
+
+        doc.setTextColor(palette.accent[0], palette.accent[1], palette.accent[2]);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("PREMIUM EBOOK PACKAGE", pageWidth / 2, 120, { align: "center" });
+
+        doc.setTextColor(palette.ink[0], palette.ink[1], palette.ink[2]);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(28);
+        const titleLines = doc.splitTextToSize(title, pageWidth - 120);
+        doc.text(titleLines, pageWidth / 2, 190, { align: "center" });
+
+        if (subtitle) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(13);
+          doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+          const subtitleLines = doc.splitTextToSize(subtitle, pageWidth - 130);
+          doc.text(subtitleLines, pageWidth / 2, 260, { align: "center" });
+        }
+
+        doc.setDrawColor(palette.accent[0], palette.accent[1], palette.accent[2]);
+        doc.setLineWidth(1.2);
+        doc.line(120, 320, pageWidth - 120, 320);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(11);
+        doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+        doc.text("Topic: " + topic, pageWidth / 2, 350, { align: "center" });
+        doc.text("Generated: " + new Date().toLocaleString(), pageWidth / 2, 370, { align: "center" });
+
+        newPage();
+      }
+
+      function startSection(title) {
+        if (y !== margin) {
+          newPage();
+        }
+        doc.setFillColor(palette.panel[0], palette.panel[1], palette.panel[2]);
+        doc.roundedRect(margin, y, maxWidth, 30, 6, 6, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(palette.accent[0], palette.accent[1], palette.accent[2]);
+        doc.text(title, margin + 12, y + 20);
+        y += 42;
       }
 
       function addHeading(text) {
@@ -1157,38 +1222,261 @@
         ensureSpace(32);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(16);
+        doc.setTextColor(palette.ink[0], palette.ink[1], palette.ink[2]);
         doc.text(text, margin, y);
         y += 24;
+      }
+
+      function addSubheading(text) {
+        if (!text) return;
+        ensureSpace(24);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(palette.accent[0], palette.accent[1], palette.accent[2]);
+        doc.text(text, margin, y);
+        y += 18;
       }
 
       function addBody(text) {
         if (!text) return;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(11);
+        doc.setTextColor(palette.ink[0], palette.ink[1], palette.ink[2]);
         const lines = doc.splitTextToSize(String(text), maxWidth);
         ensureSpace((lines.length * 14) + 8);
         doc.text(lines, margin, y);
         y += (lines.length * 14) + 8;
       }
 
-      addHeading(data.titles?.selectedTitle || getValue("topic") || "Ebook Package");
-      addBody(data.titles?.selectedSubtitle || getValue("coverSubtitle") || "");
+      function getImageFormat(dataUrl) {
+        const match = String(dataUrl || "").match(/^data:image\/([a-zA-Z0-9+.-]+);/);
+        const format = (match && match[1] ? match[1] : "png").toLowerCase();
+        if (format === "jpg") return "JPEG";
+        if (format === "jpeg") return "JPEG";
+        return "PNG";
+      }
 
-      addHeading("Strategy");
-      addBody(data.strategy?.bestAngle || "");
-      addBody(data.strategy?.primaryPromise || "");
+      function loadImageDimensions(dataUrl) {
+        return new Promise(function(resolve, reject) {
+          const img = new Image();
+          img.onload = function() {
+            resolve({ width: img.width || 1, height: img.height || 1 });
+          };
+          img.onerror = reject;
+          img.src = dataUrl;
+        });
+      }
 
-      addHeading("Table of Contents");
+      async function addImageBlock(label, dataUrl) {
+        if (!dataUrl) return;
+        addSubheading(label);
+
+        try {
+          const dimensions = await loadImageDimensions(dataUrl);
+          const maxImageWidth = maxWidth;
+          const maxImageHeight = 300;
+          let drawWidth = maxImageWidth;
+          let drawHeight = (dimensions.height / dimensions.width) * drawWidth;
+
+          if (drawHeight > maxImageHeight) {
+            drawHeight = maxImageHeight;
+            drawWidth = (dimensions.width / dimensions.height) * drawHeight;
+          }
+
+          ensureSpace(drawHeight + 14);
+          const x = margin + ((maxWidth - drawWidth) / 2);
+          const format = getImageFormat(dataUrl);
+          doc.addImage(dataUrl, format, x, y, drawWidth, drawHeight);
+          y += drawHeight + 10;
+        } catch {
+          addBody("[Image unavailable in PDF export]");
+        }
+      }
+
+      function addDetail(label, value) {
+        if (!value) return;
+        addSubheading(label);
+        addBody(value);
+      }
+
+      function addList(label, items) {
+        if (!Array.isArray(items) || !items.length) return;
+        addSubheading(label);
+        items.forEach(function(item) {
+          if (item === null || item === undefined || item === "") return;
+          if (typeof item === "object") {
+            addBody("- " + JSON.stringify(item));
+            return;
+          }
+          addBody("- " + String(item));
+        });
+      }
+
+      addCoverPage();
+
+      startSection("Strategy");
+      addDetail("Best Angle", data.strategy?.bestAngle || "");
+      addDetail("Target Buyer", data.strategy?.targetBuyer || "");
+      addDetail("Primary Promise", data.strategy?.primaryPromise || "");
+      addDetail("Positioning Statement", data.strategy?.positioningStatement || "");
+      addDetail("Why It Will Sell", data.strategy?.whyItWillSell || "");
+      addDetail("Recommended Price", data.strategy?.recommendedPrice || "");
+      addList("Premium Value Stack", data.strategy?.premiumValueStack || []);
+
+      startSection("Titles");
+      addDetail("Selected Title", data.titles?.selectedTitle || "");
+      addDetail("Selected Subtitle", data.titles?.selectedSubtitle || "");
+      addList("Alternative Titles", data.titles?.alternativeTitles || []);
+      addList("Alternative Subtitles", data.titles?.alternativeSubtitles || []);
+
+      startSection("Cover Concept");
+      addDetail("Visual Theme", data.coverConcept?.visualTheme || "");
+      addDetail("Title Placement", data.coverConcept?.titlePlacement || "");
+      addDetail("Subtitle Placement", data.coverConcept?.subtitlePlacement || "");
+      addDetail("Background Style", data.coverConcept?.backgroundStyle || "");
+      addDetail("Font Direction", data.coverConcept?.fontDirection || "");
+      addDetail("Image Idea", data.coverConcept?.imageIdea || "");
+      addDetail("Mood", data.coverConcept?.mood || "");
+      addDetail("Buyer Attraction Reason", data.coverConcept?.buyerAttractionReason || "");
+      addList("Color Palette", (data.coverConcept?.colorPalette || []).map(function(color) {
+        return (color.name || "Color") + ": " + (color.hex || "");
+      }));
+      addDetail("AI Cover Prompt", data.coverConcept?.aiCoverPrompt || "");
+
+      startSection("Visual Identity");
+      addDetail("Brand Feel", data.visualIdentity?.brandFeel || "");
+      addDetail("Font Pairing", data.visualIdentity?.fontPairing || "");
+      addDetail("Icon Style", data.visualIdentity?.iconStyle || "");
+      addDetail("Illustration Style", data.visualIdentity?.illustrationStyle || "");
+      addDetail("Photo Style", data.visualIdentity?.photoStyle || "");
+      addDetail("Page Layout Style", data.visualIdentity?.pageLayoutStyle || "");
+      addDetail("Section Divider Style", data.visualIdentity?.sectionDividerStyle || "");
+      addDetail("Callout Box Style", data.visualIdentity?.calloutBoxStyle || "");
+      addDetail("Quote Box Style", data.visualIdentity?.quoteBoxStyle || "");
+      addDetail("Worksheet Style", data.visualIdentity?.worksheetStyle || "");
+      addList("Premium Design Rules", data.visualIdentity?.premiumDesignRules || []);
+
+      startSection("Table of Contents");
       (data.tableOfContents || []).forEach(function(item, index) {
         addBody((index + 1) + ". " + (item.chapterTitle || "Untitled Chapter"));
+        addBody("Promise: " + (item.chapterPromise || ""));
+        addBody("Outcome: " + (item.readerOutcome || ""));
       });
 
-      addHeading("Chapters");
+      startSection("Chapters");
       (data.chapters || []).forEach(function(chapter, index) {
         addHeading("Chapter " + (chapter.chapterNumber || (index + 1)) + ": " + (chapter.chapterTitle || "Untitled"));
+        addDetail("Chapter Purpose", chapter.chapterPurpose || "");
+        addDetail("Opening", chapter.opening || "");
+        addDetail("Core Lesson", chapter.coreLesson || "");
+        addList("Practical Examples", chapter.practicalExamples || []);
+        addList("Step-by-Step Process", chapter.stepByStepProcess || []);
+        addList("Common Mistakes", chapter.commonMistakes || []);
+        addList("Action Checklist", chapter.actionChecklist || []);
+        if (chapter.miniWorksheet) {
+          addDetail("Mini Worksheet", chapter.miniWorksheet.title || "");
+          addDetail("Mini Worksheet Instructions", chapter.miniWorksheet.instructions || "");
+          addList("Mini Worksheet Fields", chapter.miniWorksheet.fields || []);
+        }
         addBody(chapter.chapterPurpose || "");
         addBody(chapter.keyTakeaway || "");
+        if (chapter.visualDirections) {
+          addDetail("Hero Image Idea", chapter.visualDirections.heroImageIdea || "");
+          addList("Supporting Graphics", chapter.visualDirections.supportingGraphics || []);
+          addDetail("Infographic Idea", chapter.visualDirections.infographicIdea || "");
+          addDetail("Diagram Idea", chapter.visualDirections.diagramIdea || "");
+          addList("AI Image Prompts", chapter.visualDirections.aiImagePrompts || []);
+        }
       });
+
+      startSection("Frameworks");
+      (data.frameworks || []).forEach(function(item, index) {
+        addHeading("Framework " + (index + 1) + ": " + (item.name || "Untitled"));
+        addDetail("Purpose", item.purpose || "");
+        addDetail("Visual Layout", item.visualLayout || "");
+        addDetail("Explanation", item.explanation || "");
+        addDetail("How To Use", item.howToUse || "");
+        addDetail("Design Direction", item.designDirection || "");
+        addDetail("AI Graphic Prompt", item.aiGraphicPrompt || "");
+      });
+
+      startSection("Worksheets");
+      (data.worksheets || []).forEach(function(item, index) {
+        addHeading("Worksheet " + (index + 1) + ": " + (item.title || "Untitled"));
+        addDetail("Type", item.type || "");
+        addDetail("Purpose", item.purpose || "");
+        addDetail("Instructions", item.instructions || "");
+        addList("Fields", item.fields || []);
+        addDetail("Design Notes", item.designNotes || "");
+      });
+
+      startSection("Sales Assets");
+      addDetail("Product Description", data.salesAssets?.productDescription || "");
+      addDetail("Short Sales Caption", data.salesAssets?.shortSalesCaption || "");
+      addDetail("Long Sales Caption", data.salesAssets?.longSalesCaption || "");
+      addDetail("Landing Page Headline", data.salesAssets?.landingPageHeadline || "");
+      addDetail("Landing Page Subheadline", data.salesAssets?.landingPageSubheadline || "");
+      addList("Bullet Benefits", data.salesAssets?.bulletBenefits || []);
+      addList("Bonus Ideas", data.salesAssets?.bonusIdeas || []);
+      addDetail("Launch Post", data.salesAssets?.launchPost || "");
+      addDetail("DM Sales Script", data.salesAssets?.dmSalesScript || "");
+
+      startSection("Final Pages");
+      addDetail("Welcome Letter", data.finalPages?.welcomeLetter || "");
+      addDetail("How To Use This Ebook", data.finalPages?.howToUseThisEbook || "");
+      addDetail("Quick Win Section", data.finalPages?.quickWinSection || "");
+      addList("Final Action Plan", data.finalPages?.finalActionPlan || []);
+      addDetail("Closing Message", data.finalPages?.closingMessage || "");
+      addDetail("Final CTA", data.finalPages?.finalCTA || "");
+      addDetail("Back Cover Copy", data.finalPages?.backCoverCopy || "");
+
+      if (lastBundleData) {
+        startSection("Bundle Assets (Summary)");
+        const entries = getBundleAssetEntries(lastBundleData);
+        entries.forEach(function(entry, index) {
+          const label = entry[0];
+          const asset = entry[1] || {};
+          addHeading("Bundle Asset " + (index + 1) + ": " + label);
+          Object.keys(asset).forEach(function(key) {
+            const value = asset[key];
+            if (Array.isArray(value)) {
+              addList(key, value);
+            } else if (value && typeof value === "object") {
+              addDetail(key, JSON.stringify(value));
+            } else {
+              addDetail(key, value || "");
+            }
+          });
+        });
+      }
+
+      const coverSrc = document.getElementById("coverImagePreview")?.src || "";
+      const hasCover = coverSrc && !document.getElementById("coverImagePreview")?.classList.contains("hidden");
+      const hasInterior = Array.isArray(lastInteriorImages) && lastInteriorImages.length > 0;
+
+      if (hasCover || hasInterior) {
+        startSection("Image Gallery");
+
+        if (hasCover) {
+          await addImageBlock("Cover Image", coverSrc);
+        }
+
+        if (hasInterior) {
+          for (let i = 0; i < lastInteriorImages.length; i += 1) {
+            const image = lastInteriorImages[i];
+            await addImageBlock(image.label || ("Interior Image " + (i + 1)), image.imageUrl || "");
+          }
+        }
+      }
+
+      const totalPages = doc.getNumberOfPages();
+      for (let page = 1; page <= totalPages; page += 1) {
+        doc.setPage(page);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(palette.muted[0], palette.muted[1], palette.muted[2]);
+        doc.text("Page " + page + " of " + totalPages, pageWidth - margin, pageHeight - 12, { align: "right" });
+      }
 
       return doc.output("arraybuffer");
     }
