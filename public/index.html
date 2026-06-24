@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Premium Ebook Generator</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 
 <body class="bg-slate-950 min-h-screen text-slate-900">
@@ -265,6 +267,7 @@
         <div class="bg-white rounded-3xl p-6 shadow-xl flex flex-col md:flex-row gap-3">
           <button id="copyJsonBtn" class="flex-1 bg-slate-950 text-white font-black rounded-xl p-4">Copy Full JSON</button>
           <button id="printBtn" class="flex-1 bg-indigo-600 text-white font-black rounded-xl p-4">Print / Save PDF</button>
+          <button id="saveAllFolderBtn" class="flex-1 bg-emerald-600 text-white font-black rounded-xl p-4">Save All to Topic Folder (.zip)</button>
           <button id="resetBtn" class="flex-1 bg-slate-200 text-slate-900 font-black rounded-xl p-4">Start New</button>
         </div>
       </div>
@@ -281,6 +284,7 @@
     const generateCoverBtn = document.getElementById("generateCoverBtn");
     const generateBundleBtn = document.getElementById("generateBundleBtn");
     const generateInteriorImagesBtn = document.getElementById("generateInteriorImagesBtn");
+    const saveAllFolderBtn = document.getElementById("saveAllFolderBtn");
 
     form.addEventListener("submit", async function(event) {
       event.preventDefault();
@@ -520,6 +524,81 @@
 
     document.getElementById("printBtn").addEventListener("click", function() {
       window.print();
+    });
+
+    document.getElementById("saveAllFolderBtn").addEventListener("click", async function() {
+      if (!lastData) {
+        alert("Generate the ebook package first before saving all files.");
+        return;
+      }
+
+      if (!window.JSZip || !window.jspdf) {
+        alert("Required export libraries failed to load. Please refresh and try again.");
+        return;
+      }
+
+      saveAllFolderBtn.disabled = true;
+      saveAllFolderBtn.textContent = "Preparing folder...";
+
+      try {
+        const topic = getValue("topic") || lastData.titles?.selectedTitle || "ebook-package";
+        const folderName = sanitizeFileName(topic) || "ebook-package";
+        const zip = new window.JSZip();
+        const root = zip.folder(folderName);
+
+        root.file("ebook-package.json", JSON.stringify(lastData, null, 2));
+
+        if (lastBundleData) {
+          root.file("bundle-assets.json", JSON.stringify(lastBundleData, null, 2));
+        }
+
+        if (lastInteriorImages.length) {
+          root.file("interior-images.json", JSON.stringify({ images: lastInteriorImages }, null, 2));
+        }
+
+        const pdfBytes = buildEbookPdfBytes(lastData);
+        root.file("ebook.pdf", pdfBytes);
+
+        const coverSrc = document.getElementById("coverImagePreview").src || "";
+        if (coverSrc && !document.getElementById("coverImagePreview").classList.contains("hidden")) {
+          const coverFile = await dataUrlToFileData(coverSrc, "cover");
+          if (coverFile) {
+            root.file(coverFile.name, coverFile.bytes, { binary: true });
+          }
+        }
+
+        if (lastInteriorImages.length) {
+          const imagesFolder = root.folder("interior-images");
+          for (let i = 0; i < lastInteriorImages.length; i += 1) {
+            const item = lastInteriorImages[i];
+            const fallbackName = "interior-image-" + (i + 1);
+            const labelBase = sanitizeFileName(item.label || fallbackName) || fallbackName;
+            const imageFile = await dataUrlToFileData(item.imageUrl, labelBase);
+            if (imageFile) {
+              imagesFolder.file(imageFile.name, imageFile.bytes, { binary: true });
+            }
+          }
+        }
+
+        if (lastBundleData) {
+          const entries = getBundleAssetEntries(lastBundleData);
+          const assetsFolder = root.folder("bundle-assets");
+          entries.forEach(function(entry) {
+            const label = entry[0];
+            const asset = entry[1] || {};
+            const fileName = entry[3];
+            assetsFolder.file(fileName, assetToText(label, asset));
+          });
+        }
+
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        downloadBlob(folderName + ".zip", zipBlob);
+      } catch (error) {
+        alert("Save Folder Error: " + (error.message || "Failed to prepare ZIP folder."));
+      } finally {
+        saveAllFolderBtn.disabled = false;
+        saveAllFolderBtn.textContent = "Save All to Topic Folder (.zip)";
+      }
     });
 
     document.getElementById("resetBtn").addEventListener("click", function() {
@@ -831,33 +910,7 @@
         return;
       }
 
-      const sellableAssets = [
-        ["Main Ebook", bundle.mainEbook, "Download Main Ebook", "01-main-ebook.txt"],
-        ["Workbook", bundle.workbook, "Download Workbook", "02-workbook.txt"],
-        ["Prompt Pack", bundle.promptPack, "Download Prompt Pack", "03-prompt-pack.txt"],
-        ["30-Day Action Plan", bundle.thirtyDayActionPlan, "Download 30-Day Action Plan", "04-30-day-action-plan.txt"],
-        ["Digital Product Idea Bank", bundle.digitalProductIdeaBank, "Download Digital Product Idea Bank", "05-digital-product-idea-bank.txt"],
-        ["Launch Caption Templates", bundle.launchCaptionTemplates, "Download Launch Caption Templates", "06-launch-caption-templates.txt"],
-        ["Sales Page Copy Template", bundle.salesPageCopyTemplate, "Download Sales Page Copy Template", "07-sales-page-copy-template.txt"],
-        ["Bonus: AI Cover Prompt Pack", bundle.aiCoverPromptPack, "Download AI Cover Prompt Pack", "08-ai-cover-prompt-pack.txt"]
-      ];
-
-      const personalAssets = [
-        ["Main Guide", bundle.mainGuide, "Download Main Guide", "01-main-guide.txt"],
-        ["Action Workbook", bundle.actionWorkbook, "Download Action Workbook", "02-action-workbook.txt"],
-        ["Checklist", bundle.checklist, "Download Checklist", "03-checklist.txt"],
-        ["Weekly Plan", bundle.weeklyPlan, "Download Weekly Plan", "04-weekly-plan.txt"],
-        ["Tracker", bundle.tracker, "Download Tracker", "05-tracker.txt"],
-        ["Reflection Questions", bundle.reflectionQuestions, "Download Reflection Questions", "06-reflection-questions.txt"],
-        ["Resource List", bundle.resourceList, "Download Resource List", "07-resource-list.txt"],
-        ["AI Prompt Pack", bundle.aiPromptPack, "Download AI Prompt Pack", "08-ai-prompt-pack.txt"]
-      ];
-
-      const hasPersonalAssets = personalAssets.some(function(entry) {
-        return entry[1] && typeof entry[1] === "object";
-      });
-
-      const assets = hasPersonalAssets ? personalAssets : sellableAssets;
+      const assets = getBundleAssetEntries(bundle);
 
       assets.forEach(function(entry) {
         const label = entry[0];
@@ -890,6 +943,36 @@
 
         box.appendChild(card);
       });
+    }
+
+    function getBundleAssetEntries(bundle) {
+      const sellableAssets = [
+        ["Main Ebook", bundle.mainEbook, "Download Main Ebook", "01-main-ebook.txt"],
+        ["Workbook", bundle.workbook, "Download Workbook", "02-workbook.txt"],
+        ["Prompt Pack", bundle.promptPack, "Download Prompt Pack", "03-prompt-pack.txt"],
+        ["30-Day Action Plan", bundle.thirtyDayActionPlan, "Download 30-Day Action Plan", "04-30-day-action-plan.txt"],
+        ["Digital Product Idea Bank", bundle.digitalProductIdeaBank, "Download Digital Product Idea Bank", "05-digital-product-idea-bank.txt"],
+        ["Launch Caption Templates", bundle.launchCaptionTemplates, "Download Launch Caption Templates", "06-launch-caption-templates.txt"],
+        ["Sales Page Copy Template", bundle.salesPageCopyTemplate, "Download Sales Page Copy Template", "07-sales-page-copy-template.txt"],
+        ["Bonus: AI Cover Prompt Pack", bundle.aiCoverPromptPack, "Download AI Cover Prompt Pack", "08-ai-cover-prompt-pack.txt"]
+      ];
+
+      const personalAssets = [
+        ["Main Guide", bundle.mainGuide, "Download Main Guide", "01-main-guide.txt"],
+        ["Action Workbook", bundle.actionWorkbook, "Download Action Workbook", "02-action-workbook.txt"],
+        ["Checklist", bundle.checklist, "Download Checklist", "03-checklist.txt"],
+        ["Weekly Plan", bundle.weeklyPlan, "Download Weekly Plan", "04-weekly-plan.txt"],
+        ["Tracker", bundle.tracker, "Download Tracker", "05-tracker.txt"],
+        ["Reflection Questions", bundle.reflectionQuestions, "Download Reflection Questions", "06-reflection-questions.txt"],
+        ["Resource List", bundle.resourceList, "Download Resource List", "07-resource-list.txt"],
+        ["AI Prompt Pack", bundle.aiPromptPack, "Download AI Prompt Pack", "08-ai-prompt-pack.txt"]
+      ];
+
+      const hasPersonalAssets = personalAssets.some(function(entry) {
+        return entry[1] && typeof entry[1] === "object";
+      });
+
+      return hasPersonalAssets ? personalAssets : sellableAssets;
     }
 
     function renderAssetField(parent, label, value) {
@@ -1018,6 +1101,96 @@
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+    }
+
+    function downloadBlob(fileName, blob) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function sanitizeFileName(value) {
+      return String(value || "")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\-\s_]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/\-+/g, "-");
+    }
+
+    async function dataUrlToFileData(dataUrl, baseName) {
+      if (!dataUrl) return null;
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const bytes = await blob.arrayBuffer();
+      const ext = (blob.type || "image/png").split("/")[1] || "png";
+      const safeName = sanitizeFileName(baseName) || "image";
+      return {
+        name: safeName + "." + ext,
+        bytes
+      };
+    }
+
+    function buildEbookPdfBytes(data) {
+      const jsPDF = window.jspdf.jsPDF;
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 40;
+      const maxWidth = pageWidth - (margin * 2);
+      let y = margin;
+
+      function ensureSpace(required) {
+        if (y + required > pageHeight - margin) {
+          doc.addPage();
+          y = margin;
+        }
+      }
+
+      function addHeading(text) {
+        if (!text) return;
+        ensureSpace(32);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(16);
+        doc.text(text, margin, y);
+        y += 24;
+      }
+
+      function addBody(text) {
+        if (!text) return;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(11);
+        const lines = doc.splitTextToSize(String(text), maxWidth);
+        ensureSpace((lines.length * 14) + 8);
+        doc.text(lines, margin, y);
+        y += (lines.length * 14) + 8;
+      }
+
+      addHeading(data.titles?.selectedTitle || getValue("topic") || "Ebook Package");
+      addBody(data.titles?.selectedSubtitle || getValue("coverSubtitle") || "");
+
+      addHeading("Strategy");
+      addBody(data.strategy?.bestAngle || "");
+      addBody(data.strategy?.primaryPromise || "");
+
+      addHeading("Table of Contents");
+      (data.tableOfContents || []).forEach(function(item, index) {
+        addBody((index + 1) + ". " + (item.chapterTitle || "Untitled Chapter"));
+      });
+
+      addHeading("Chapters");
+      (data.chapters || []).forEach(function(chapter, index) {
+        addHeading("Chapter " + (chapter.chapterNumber || (index + 1)) + ": " + (chapter.chapterTitle || "Untitled"));
+        addBody(chapter.chapterPurpose || "");
+        addBody(chapter.keyTakeaway || "");
+      });
+
+      return doc.output("arraybuffer");
     }
 
     function renderFinalPages(finalPages) {
