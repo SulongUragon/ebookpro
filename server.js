@@ -24,7 +24,8 @@ app.post("/api/generate-ebook", async (req, res) => {
       language = "Taglish",
       style = "Luxury Black and Gold",
       price = "$27",
-      depth = "Premium Paid Ebook"
+      depth = "Premium Paid Ebook",
+      visualDensity = "Balanced"
     } = req.body;
 
     if (!topic || !audience || !promise) {
@@ -42,7 +43,8 @@ app.post("/api/generate-ebook", async (req, res) => {
       language,
       style,
       price,
-      depth
+      depth,
+      visualDensity
     });
 
     const response = await client.responses.create({
@@ -129,6 +131,7 @@ app.post("/api/generate-bundle-assets", async (req, res) => {
       style = "Luxury Black and Gold",
       price = "$27",
       depth = "Premium Paid Ebook",
+      visualDensity = "Balanced",
       title = "",
       subtitle = ""
     } = req.body;
@@ -149,6 +152,7 @@ app.post("/api/generate-bundle-assets", async (req, res) => {
       style,
       price,
       depth,
+      visualDensity,
       title,
       subtitle
     });
@@ -192,6 +196,7 @@ Language: ${input.language}
 Visual Style: ${input.style}
 Price Positioning: ${input.price}
 Ebook Type: ${input.depth}
+Visual Density: ${input.visualDensity || "Balanced"}
 Market Positioning: US / California-based digital product market
 
 CRITICAL OUTPUT RULES:
@@ -205,6 +210,26 @@ Avoid generic advice.
 Use USD pricing logic.
 Make the ebook feel sellable as a digital product.
 Use the custom product brief as high-priority direction. Do not ignore it. Integrate relevant details into the ebook and bundle assets without making the output messy.
+Use the selected Visual Density to control image prompts and visual directions.
+
+If Minimal:
+- Include only cover image prompt and limited visual directions.
+- Do not overdo images.
+
+If Balanced:
+- Include one strong image prompt per chapter.
+- Include key visuals for frameworks, checklists, or worksheets only when useful.
+
+If Rich:
+- Include one strong image prompt per chapter.
+- Include extra visual prompts for frameworks, checklists, worksheets, action plans, and key sections.
+- Make the ebook feel like a premium visual digital product bundle.
+
+Important:
+- Do not create an image for every small subtopic.
+- Avoid clutter.
+- Keep visuals purposeful and premium.
+- Image prompts should be specific, buyer-attracting, and aligned with the selected style.
 If Preferred Cover Subtitle is provided, use it as the selectedSubtitle or strongly align with it.
 
 Return this exact JSON structure:
@@ -362,6 +387,7 @@ Language: ${input.language}
 Style: ${input.style}
 Price Positioning: ${input.price}
 Ebook Type: ${input.depth}
+Visual Density: ${input.visualDensity || "Balanced"}
 Current Title: ${input.title || ""}
 Current Subtitle: ${input.subtitle || ""}
 

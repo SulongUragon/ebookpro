@@ -95,6 +95,15 @@
           </select>
         </div>
 
+        <div>
+          <label class="font-bold text-sm">Visual Density</label>
+          <select id="visualDensity" class="w-full mt-1 border rounded-xl p-3">
+            <option value="Minimal">Minimal</option>
+            <option value="Balanced" selected>Balanced</option>
+            <option value="Rich">Rich</option>
+          </select>
+        </div>
+
         <button id="generateBtn" type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl p-4">
           Generate Ebook Package
         </button>
@@ -265,7 +274,8 @@
         language: getValue("language"),
         style: getValue("style"),
         price: getValue("price") || "$27",
-        depth: getValue("depth")
+        depth: getValue("depth"),
+        visualDensity: getValue("visualDensity") || "Balanced"
       };
 
       showLoading();
@@ -378,6 +388,7 @@
             style: getValue("style"),
             price: getValue("price") || "$27",
             depth: getValue("depth"),
+            visualDensity: getValue("visualDensity") || "Balanced",
             title: lastData.titles?.selectedTitle || "",
             subtitle: getValue("coverSubtitle") || lastData.titles?.selectedSubtitle || ""
           })
