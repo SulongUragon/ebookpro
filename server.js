@@ -17,6 +17,7 @@ app.post("/api/generate-ebook", async (req, res) => {
   try {
     const {
       topic,
+      creationMode = "Sellable Digital Product",
       audience,
       promise,
       customProductBrief = "",
@@ -36,6 +37,7 @@ app.post("/api/generate-ebook", async (req, res) => {
 
     const prompt = buildEbookPrompt({
       topic,
+      creationMode,
       audience,
       promise,
       customProductBrief,
@@ -123,6 +125,7 @@ app.post("/api/generate-bundle-assets", async (req, res) => {
   try {
     const {
       topic,
+      creationMode = "Sellable Digital Product",
       audience,
       promise,
       customProductBrief = "",
@@ -144,6 +147,7 @@ app.post("/api/generate-bundle-assets", async (req, res) => {
 
     const prompt = buildBundleAssetsPrompt({
       topic,
+      creationMode,
       audience,
       promise,
       customProductBrief,
@@ -164,8 +168,9 @@ app.post("/api/generate-bundle-assets", async (req, res) => {
 
     const text = response.output_text;
     const json = extractJson(text);
+    const normalized = normalizeBundleAssetsByCreationMode(json, creationMode);
 
-    res.json(json);
+    res.json(normalized);
   } catch (error) {
     console.error("Bundle assets generation error:", error);
 
@@ -266,6 +271,7 @@ It should feel like a high-value digital product people would want to buy, save,
 
 INPUT DETAILS:
 Topic: ${input.topic}
+Creation Mode: ${input.creationMode || "Sellable Digital Product"}
 Target Audience: ${input.audience}
 Main Promise: ${input.promise}
 Custom Product Brief:
@@ -289,6 +295,20 @@ Avoid generic advice.
 Use USD pricing logic.
 Make the ebook feel sellable as a digital product.
 Use the custom product brief as high-priority direction. Do not ignore it. Integrate relevant details into the ebook and bundle assets without making the output messy.
+Use Creation Mode to shape the entire output.
+
+If Creation Mode is Sellable Digital Product:
+- Position the output as a paid digital product.
+- Include buyer-focused transformation.
+- Include offer angle, pricing logic, value stack, sales page copy, launch captions, product bonuses, and bundle assets when relevant.
+- Make the ebook/package commercially useful and ready to sell.
+
+If Creation Mode is Personal Guide / Workbook:
+- Position the output as a personalized guide for the user's own goal.
+- Do not make it overly sales-focused.
+- Focus on practical steps, personal action plans, checklists, trackers, reflection questions, weekly plans, and habit/action systems.
+- Avoid unnecessary sales page copy unless the user asks for it.
+- Make the output feel useful for personal reading, self-guidance, and execution.
 Use the selected Visual Density to control image prompts and visual directions.
 
 If Minimal:
@@ -457,6 +477,7 @@ Keep each asset focused, practical, premium, and ready to copy into Canva, Googl
 
 INPUT DETAILS:
 Topic: ${input.topic}
+Creation Mode: ${input.creationMode || "Sellable Digital Product"}
 Audience: ${input.audience}
 Main Promise: ${input.promise}
 Custom Product Brief:
@@ -479,8 +500,17 @@ Write in ${input.language}.
 Use USD-friendly, premium digital product language.
 Do not regenerate the full ebook or cover image.
 Use the custom product brief as high-priority direction. Do not ignore it. Integrate relevant details into the ebook and bundle assets without making the output messy.
+Use Creation Mode to shape the entire output.
 
-Return this exact JSON structure:
+If Creation Mode is Sellable Digital Product:
+- Position assets for selling and launching.
+- Focus on commercial value and buyer-ready packaging.
+
+If Creation Mode is Personal Guide / Workbook:
+- Position assets for personal use and execution.
+- Avoid unnecessary sales-focused material.
+
+If Creation Mode is Sellable Digital Product, return this exact JSON structure:
 
 {
   "mainEbook": {
@@ -550,6 +580,69 @@ Return this exact JSON structure:
   }
 }
 
+If Creation Mode is Personal Guide / Workbook, return this exact JSON structure:
+
+{
+  "mainGuide": {
+    "title": "",
+    "purpose": "",
+    "copyReadyIntro": "",
+    "keySections": [],
+    "designNotes": ""
+  },
+  "actionWorkbook": {
+    "title": "",
+    "purpose": "",
+    "pages": [],
+    "prompts": [],
+    "fields": [],
+    "designNotes": ""
+  },
+  "checklist": {
+    "title": "",
+    "purpose": "",
+    "items": [],
+    "usageTips": [],
+    "designNotes": ""
+  },
+  "weeklyPlan": {
+    "title": "",
+    "purpose": "",
+    "weekByWeekPlan": [],
+    "milestones": [],
+    "designNotes": ""
+  },
+  "tracker": {
+    "title": "",
+    "purpose": "",
+    "trackingAreas": [],
+    "reviewRhythm": "",
+    "designNotes": ""
+  },
+  "reflectionQuestions": {
+    "title": "",
+    "purpose": "",
+    "questionSets": [],
+    "journalPrompts": [],
+    "designNotes": ""
+  },
+  "resourceList": {
+    "title": "",
+    "purpose": "",
+    "categories": [],
+    "recommendedResources": [],
+    "designNotes": ""
+  },
+  "aiPromptPack": {
+    "title": "",
+    "purpose": "",
+    "promptCategories": [],
+    "doneForYouPrompts": [],
+    "customizationTips": [],
+    "designNotes": ""
+  }
+}
+
 CONTENT REQUIREMENTS:
 - Generate 8 complete bundle assets.
 - Make each asset distinct and useful.
@@ -557,6 +650,31 @@ CONTENT REQUIREMENTS:
 - Include the preferred cover subtitle where appropriate.
 - The output should be immediately usable as a separate asset bundle.
 `;
+}
+
+function normalizeBundleAssetsByCreationMode(bundle, creationMode) {
+  const mode = creationMode || "Sellable Digital Product";
+  const source = bundle && typeof bundle === "object" ? bundle : {};
+
+  if (mode !== "Personal Guide / Workbook") {
+    return source;
+  }
+
+  const alreadyPersonal = source.mainGuide || source.actionWorkbook || source.aiPromptPack;
+  if (alreadyPersonal) {
+    return source;
+  }
+
+  return {
+    mainGuide: source.mainEbook || {},
+    actionWorkbook: source.workbook || {},
+    checklist: source.thirtyDayActionPlan || {},
+    weeklyPlan: source.thirtyDayActionPlan || {},
+    tracker: source.digitalProductIdeaBank || {},
+    reflectionQuestions: source.launchCaptionTemplates || {},
+    resourceList: source.salesPageCopyTemplate || {},
+    aiPromptPack: source.aiCoverPromptPack || source.promptPack || {}
+  };
 }
 
 function buildCoverPrompt(input) {

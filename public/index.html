@@ -21,6 +21,14 @@
         </div>
 
         <div>
+          <label class="font-bold text-sm">Creation Mode</label>
+          <select id="creationMode" class="w-full mt-1 border rounded-xl p-3">
+            <option value="Sellable Digital Product" selected>Sellable Digital Product</option>
+            <option value="Personal Guide / Workbook">Personal Guide / Workbook</option>
+          </select>
+        </div>
+
+        <div>
           <label class="font-bold text-sm">Target Audience</label>
           <input id="audience" required class="w-full mt-1 border rounded-xl p-3" placeholder="Creators, coaches, or beginners">
         </div>
@@ -279,6 +287,7 @@
 
       const payload = {
         topic: getValue("topic"),
+        creationMode: getValue("creationMode") || "Sellable Digital Product",
         audience: getValue("audience"),
         promise: getValue("promise"),
         customProductBrief: getValue("customProductBrief"),
@@ -445,6 +454,7 @@
           },
           body: JSON.stringify({
             topic: getValue("topic"),
+            creationMode: getValue("creationMode") || "Sellable Digital Product",
             audience: getValue("audience"),
             promise: getValue("promise"),
             customProductBrief: getValue("customProductBrief"),
@@ -821,7 +831,7 @@
         return;
       }
 
-      const assets = [
+      const sellableAssets = [
         ["Main Ebook", bundle.mainEbook, "Download Main Ebook", "01-main-ebook.txt"],
         ["Workbook", bundle.workbook, "Download Workbook", "02-workbook.txt"],
         ["Prompt Pack", bundle.promptPack, "Download Prompt Pack", "03-prompt-pack.txt"],
@@ -831,6 +841,23 @@
         ["Sales Page Copy Template", bundle.salesPageCopyTemplate, "Download Sales Page Copy Template", "07-sales-page-copy-template.txt"],
         ["Bonus: AI Cover Prompt Pack", bundle.aiCoverPromptPack, "Download AI Cover Prompt Pack", "08-ai-cover-prompt-pack.txt"]
       ];
+
+      const personalAssets = [
+        ["Main Guide", bundle.mainGuide, "Download Main Guide", "01-main-guide.txt"],
+        ["Action Workbook", bundle.actionWorkbook, "Download Action Workbook", "02-action-workbook.txt"],
+        ["Checklist", bundle.checklist, "Download Checklist", "03-checklist.txt"],
+        ["Weekly Plan", bundle.weeklyPlan, "Download Weekly Plan", "04-weekly-plan.txt"],
+        ["Tracker", bundle.tracker, "Download Tracker", "05-tracker.txt"],
+        ["Reflection Questions", bundle.reflectionQuestions, "Download Reflection Questions", "06-reflection-questions.txt"],
+        ["Resource List", bundle.resourceList, "Download Resource List", "07-resource-list.txt"],
+        ["AI Prompt Pack", bundle.aiPromptPack, "Download AI Prompt Pack", "08-ai-prompt-pack.txt"]
+      ];
+
+      const hasPersonalAssets = personalAssets.some(function(entry) {
+        return entry[1] && typeof entry[1] === "object";
+      });
+
+      const assets = hasPersonalAssets ? personalAssets : sellableAssets;
 
       assets.forEach(function(entry) {
         const label = entry[0];
