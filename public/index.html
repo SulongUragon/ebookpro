@@ -209,7 +209,17 @@
         </div>
 
         <div class="bg-white rounded-3xl p-8 shadow-xl">
-          <h3 class="text-2xl font-black mb-4">Chapters</h3>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <h3 class="text-2xl font-black">Chapters</h3>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <button id="generateInteriorImagesBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl px-4 py-3 text-sm">Generate Interior Images</button>
+              <button id="downloadInteriorImagesJsonBtn" class="bg-slate-900 text-white font-black rounded-xl px-4 py-3 text-sm">Download All Interior Images JSON</button>
+            </div>
+          </div>
+          <div id="interiorImagesLoading" class="hidden bg-emerald-50 border border-emerald-100 text-emerald-900 rounded-2xl p-4 text-center font-bold mb-4">
+            Generating interior images...
+          </div>
+          <div id="interiorImagesGeneral" class="space-y-3 mb-4"></div>
           <div id="chapterList" class="space-y-5"></div>
         </div>
 
@@ -256,11 +266,13 @@
   <script>
     let lastData = null;
     let lastBundleData = null;
+    let lastInteriorImages = [];
 
     const form = document.getElementById("ebookForm");
     const generateBtn = document.getElementById("generateBtn");
     const generateCoverBtn = document.getElementById("generateCoverBtn");
     const generateBundleBtn = document.getElementById("generateBundleBtn");
+    const generateInteriorImagesBtn = document.getElementById("generateInteriorImagesBtn");
 
     form.addEventListener("submit", async function(event) {
       event.preventDefault();
@@ -296,6 +308,7 @@
         }
 
         lastData = data;
+        resetInteriorImages();
         resetCoverImage();
         renderData(data);
         showResults();
@@ -304,6 +317,58 @@
         showEmpty();
       } finally {
         setGenerating(false);
+      }
+    });
+
+    document.getElementById("generateInteriorImagesBtn").addEventListener("click", async function() {
+      if (!lastData) {
+        alert("Generate the ebook first before creating interior images.");
+        return;
+      }
+
+      const button = document.getElementById("generateInteriorImagesBtn");
+      const loading = document.getElementById("interiorImagesLoading");
+
+      button.disabled = true;
+      button.textContent = "Generating interior images...";
+      loading.classList.remove("hidden");
+
+      try {
+        const response = await fetch("/api/generate-interior-images", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            title: lastData.titles?.selectedTitle || "",
+            subtitle: getValue("coverSubtitle") || lastData.titles?.selectedSubtitle || "",
+            topic: getValue("topic"),
+            style: getValue("style"),
+            visualDensity: getValue("visualDensity") || "Balanced",
+            chapters: lastData.chapters || [],
+            frameworks: lastData.frameworks || [],
+            worksheets: lastData.worksheets || []
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.details || data.error || "Interior image generation failed.");
+        }
+
+        lastInteriorImages = data.images || [];
+        applyInteriorImagesToChapterCards();
+      } catch (error) {
+        const message = String(error.message || "");
+        const isQuotaError = /quota|rate limit|429|insufficient/i.test(message);
+        alert(isQuotaError
+          ? "Interior Images Error: Quota or rate limit reached. Please wait or increase your OpenAI limits, then try again."
+          : "Interior Images Error: " + error.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = "Generate Interior Images";
+        loading.classList.add("hidden");
       }
     });
 
@@ -434,6 +499,15 @@
       downloadTextFile("bundle-assets.json", JSON.stringify(lastBundleData, null, 2), "application/json");
     });
 
+    document.getElementById("downloadInteriorImagesJsonBtn").addEventListener("click", function() {
+      if (!lastInteriorImages.length) {
+        alert("Generate interior images first.");
+        return;
+      }
+
+      downloadTextFile("interior-images.json", JSON.stringify({ images: lastInteriorImages }, null, 2), "application/json");
+    });
+
     document.getElementById("printBtn").addEventListener("click", function() {
       window.print();
     });
@@ -441,6 +515,7 @@
     document.getElementById("resetBtn").addEventListener("click", function() {
       form.reset();
       lastData = null;
+      resetInteriorImages();
       resetCoverImage();
       showEmpty();
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -488,6 +563,17 @@
       document.getElementById("bundleLoading").classList.add("hidden");
       generateBundleBtn.disabled = false;
       generateBundleBtn.textContent = "Generate Bundle Assets";
+    }
+
+    function resetInteriorImages() {
+      lastInteriorImages = [];
+      clear(document.getElementById("interiorImagesGeneral"));
+      document.querySelectorAll("[id^='chapterImages-']").forEach(function(node) {
+        clear(node);
+      });
+      document.getElementById("interiorImagesLoading").classList.add("hidden");
+      generateInteriorImagesBtn.disabled = false;
+      generateInteriorImagesBtn.textContent = "Generate Interior Images";
     }
 
     function renderData(data) {
@@ -579,10 +665,17 @@
       const box = document.getElementById("chapterList");
       clear(box);
 
-      chapters.forEach(function(chapter) {
+      chapters.forEach(function(chapter, index) {
         const card = createCard();
+        const chapterNumber = Number(chapter.chapterNumber) || (index + 1);
 
         addHeading(card, chapter.chapterTitle || "Untitled Chapter");
+
+        const imageSlot = document.createElement("div");
+        imageSlot.id = "chapterImages-" + chapterNumber;
+        imageSlot.className = "space-y-3 mb-4";
+        card.appendChild(imageSlot);
+
         addParagraph(card, chapter.opening);
         addDetail(card, "Purpose", chapter.chapterPurpose);
         addDetail(card, "Core Lesson", chapter.coreLesson);
@@ -609,6 +702,59 @@
 
         box.appendChild(card);
       });
+
+      applyInteriorImagesToChapterCards();
+    }
+
+    function applyInteriorImagesToChapterCards() {
+      const generalBox = document.getElementById("interiorImagesGeneral");
+      clear(generalBox);
+      document.querySelectorAll("[id^='chapterImages-']").forEach(function(slot) {
+        clear(slot);
+      });
+
+      if (!lastInteriorImages.length) return;
+
+      lastInteriorImages.forEach(function(item, index) {
+        const imageCard = buildInteriorImageCard(item, index);
+        const chapterNumber = Number(item.chapterNumber);
+
+        if (chapterNumber) {
+          const chapterSlot = document.getElementById("chapterImages-" + chapterNumber);
+          if (chapterSlot) {
+            chapterSlot.appendChild(imageCard);
+            return;
+          }
+        }
+
+        generalBox.appendChild(imageCard);
+      });
+    }
+
+    function buildInteriorImageCard(item, index) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "bg-white border border-slate-200 rounded-2xl p-4";
+
+      const label = document.createElement("p");
+      label.className = "text-sm font-black text-slate-900 mb-3";
+      label.textContent = item.label || ("Interior Image " + (index + 1));
+
+      const img = document.createElement("img");
+      img.src = item.imageUrl || "";
+      img.alt = item.label || "Interior image";
+      img.className = "w-full rounded-xl border mb-3";
+
+      const download = document.createElement("a");
+      download.href = item.imageUrl || "";
+      download.download = ("interior-image-" + (index + 1) + ".png");
+      download.className = "inline-block bg-slate-900 text-white font-black rounded-xl px-4 py-2 text-sm";
+      download.textContent = "Download Image";
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(img);
+      wrapper.appendChild(download);
+
+      return wrapper;
     }
 
     function renderFrameworks(items) {

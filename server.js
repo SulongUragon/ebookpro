@@ -176,6 +176,85 @@ app.post("/api/generate-bundle-assets", async (req, res) => {
   }
 });
 
+app.post("/api/generate-interior-images", async (req, res) => {
+  try {
+    const {
+      title = "",
+      subtitle = "",
+      topic = "",
+      style = "Luxury Black and Gold",
+      visualDensity = "Balanced",
+      chapters = [],
+      frameworks = [],
+      worksheets = []
+    } = req.body;
+
+    if (!title && !topic) {
+      return res.status(400).json({
+        error: "Title or topic is required."
+      });
+    }
+
+    if (!Array.isArray(chapters) || chapters.length === 0) {
+      return res.status(400).json({
+        error: "Chapters array is required to generate interior images."
+      });
+    }
+
+    const plan = buildInteriorImagePlan({
+      title,
+      subtitle,
+      topic,
+      style,
+      visualDensity,
+      chapters,
+      frameworks,
+      worksheets
+    });
+
+    const images = [];
+
+    for (const item of plan) {
+      const image = await client.images.generate({
+        model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
+        prompt: item.prompt,
+        size: "1024x1024"
+      });
+
+      const base64Image = image.data?.[0]?.b64_json;
+
+      if (!base64Image) {
+        throw new Error("No interior image returned from OpenAI.");
+      }
+
+      images.push({
+        label: item.label,
+        chapterNumber: item.chapterNumber || null,
+        imageUrl: `data:image/png;base64,${base64Image}`
+      });
+    }
+
+    res.json({
+      visualDensity,
+      totalImages: images.length,
+      images
+    });
+  } catch (error) {
+    console.error("Interior image generation error:", error);
+
+    const message = String(error?.message || "");
+    const status = Number(error?.status || error?.code || 0);
+    const isQuotaError = status === 429 || /quota|rate limit|insufficient/i.test(message);
+
+    res.status(isQuotaError ? 429 : 500).json({
+      error: isQuotaError
+        ? "Quota or rate limit reached while generating interior images."
+        : "Failed to generate interior images.",
+      details: message
+    });
+  }
+});
+
 function buildEbookPrompt(input) {
   return `
 You are an elite premium ebook strategist, digital product creator, conversion copywriter, curriculum designer, brand designer, visual director, Canva/Figma layout planner, and AI image prompt engineer.
@@ -571,6 +650,120 @@ ${customCoverDirection || "None provided. Follow the cover prompt and preset ins
 
 ${textAccuracyInstructions}
 `;
+}
+
+function buildInteriorImagePlan(input) {
+  const {
+    title = "",
+    subtitle = "",
+    topic = "",
+    style = "Luxury Black and Gold",
+    visualDensity = "Balanced",
+    chapters = [],
+    frameworks = [],
+    worksheets = []
+  } = input || {};
+
+  const density = ["Minimal", "Balanced", "Rich"].includes(visualDensity) ? visualDensity : "Balanced";
+  const cleanTitle = title || topic || "Premium Ebook";
+  const cleanSubtitle = subtitle || "";
+
+  const buildPrompt = ({ scene, chapterTitle = "", extra = "" }) => `
+Create a premium interior ebook image for a digital product guide.
+
+BOOK TITLE: ${cleanTitle}
+BOOK SUBTITLE: ${cleanSubtitle}
+TOPIC: ${topic || cleanTitle}
+STYLE: ${style}
+VISUAL DENSITY: ${density}
+CHAPTER CONTEXT: ${chapterTitle || "General"}
+SCENE DIRECTION: ${scene}
+
+RULES:
+- High-end, buyer-attracting visual style
+- No text overlays, no typography blocks, no watermarks
+- Clean composition, not cluttered
+- Portrait-friendly interior illustration style
+- Purposeful visual storytelling aligned with chapter intent
+${extra ? `- ${extra}` : ""}
+`;
+
+  const plan = [];
+
+  if (density === "Minimal") {
+    const chapter = chapters[0] || {};
+    const heroIdea = chapter.visualDirections?.heroImageIdea || chapter.chapterPromise || chapter.chapterTitle || topic;
+    plan.push({
+      label: "Interior Hero Image",
+      chapterNumber: null,
+      prompt: buildPrompt({
+        chapterTitle: chapter.chapterTitle || "",
+        scene: heroIdea,
+        extra: "Generate one versatile hero visual for the ebook interior."
+      })
+    });
+    return plan;
+  }
+
+  chapters.forEach((chapter, index) => {
+    const chapterNumber = Number(chapter.chapterNumber) || (index + 1);
+    const heroIdea = chapter.visualDirections?.heroImageIdea
+      || (Array.isArray(chapter.visualDirections?.aiImagePrompts) && chapter.visualDirections.aiImagePrompts[0])
+      || chapter.chapterPromise
+      || chapter.chapterTitle
+      || `Chapter ${chapterNumber}`;
+
+    plan.push({
+      label: `Chapter ${chapterNumber}: ${chapter.chapterTitle || "Interior Visual"}`,
+      chapterNumber,
+      prompt: buildPrompt({
+        chapterTitle: chapter.chapterTitle || "",
+        scene: heroIdea,
+        extra: "This should be the primary chapter visual."
+      })
+    });
+  });
+
+  if (density === "Rich") {
+    const extras = [];
+
+    (frameworks || []).forEach((framework, index) => {
+      const source = framework.aiGraphicPrompt || framework.designDirection || framework.visualLayout || framework.purpose || framework.name;
+      if (!source) return;
+      extras.push({
+        label: `Framework Visual ${index + 1}: ${framework.name || "Framework"}`,
+        prompt: buildPrompt({
+          chapterTitle: framework.name || "Framework",
+          scene: source,
+          extra: "Create a supporting framework visual with clean structure and premium style."
+        })
+      });
+    });
+
+    (worksheets || []).forEach((worksheet, index) => {
+      const source = worksheet.designNotes || worksheet.purpose || worksheet.title;
+      if (!source) return;
+      extras.push({
+        label: `Worksheet Visual ${index + 1}: ${worksheet.title || "Worksheet"}`,
+        prompt: buildPrompt({
+          chapterTitle: worksheet.title || "Worksheet",
+          scene: source,
+          extra: "Create a supporting worksheet-inspired visual, not a literal form screenshot."
+        })
+      });
+    });
+
+    for (const extra of extras) {
+      if (plan.length >= 10) break;
+      plan.push({
+        label: extra.label,
+        chapterNumber: null,
+        prompt: extra.prompt
+      });
+    }
+  }
+
+  return plan.slice(0, 10);
 }
 
 function extractJson(text) {
