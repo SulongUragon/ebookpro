@@ -901,5 +901,5 @@ function extractJson(text) {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Premium Ebook Generator running at http://localhost:${PORT}`);
+  console.log(`Ebook Studio running at http://localhost:${PORT}`);
 });
