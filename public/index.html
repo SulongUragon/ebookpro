@@ -18,6 +18,15 @@
 
       <form id="ebookForm" class="space-y-4">
         <div>
+          <label class="font-bold text-sm">Input Mode</label>
+          <select id="inputMode" class="w-full mt-1 border rounded-xl p-3">
+            <option value="manual" selected>Manual Fill (I will complete form)</option>
+            <option value="ai-topic-only">AI Fill (Topic only)</option>
+          </select>
+          <p id="inputModeHint" class="text-xs text-slate-500 mt-2">Manual mode: you set audience, promise, and details.</p>
+        </div>
+
+        <div>
           <label class="font-bold text-sm">Ebook Topic</label>
           <input id="topic" required class="w-full mt-1 border rounded-xl p-3" placeholder="Digital Product Business">
         </div>
@@ -285,11 +294,17 @@
     const generateBundleBtn = document.getElementById("generateBundleBtn");
     const generateInteriorImagesBtn = document.getElementById("generateInteriorImagesBtn");
     const saveAllFolderBtn = document.getElementById("saveAllFolderBtn");
+    const inputModeSelect = document.getElementById("inputMode");
+
+    inputModeSelect.addEventListener("change", applyInputModeUI);
+    applyInputModeUI();
 
     form.addEventListener("submit", async function(event) {
       event.preventDefault();
 
-      const payload = {
+      const inputMode = getValue("inputMode") || "manual";
+
+      let payload = {
         topic: getValue("topic"),
         creationMode: getValue("creationMode") || "Sellable Digital Product",
         audience: getValue("audience"),
@@ -303,9 +318,41 @@
         visualDensity: getValue("visualDensity") || "Balanced"
       };
 
+      if (!payload.topic) {
+        alert("Topic is required.");
+        return;
+      }
+
       showLoading();
 
       try {
+        if (inputMode === "ai-topic-only") {
+          const suggestionResponse = await fetch("/api/suggest-inputs", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              topic: payload.topic,
+              creationMode: payload.creationMode,
+              language: payload.language
+            })
+          });
+
+          const suggestionData = await suggestionResponse.json();
+
+          if (!suggestionResponse.ok) {
+            throw new Error(suggestionData.details || suggestionData.error || "Failed to generate AI form values.");
+          }
+
+          const suggestedPayload = normalizeSuggestedInputPayload(suggestionData);
+          applySuggestedInputValues(suggestedPayload);
+          payload = {
+            ...payload,
+            ...suggestedPayload
+          };
+        }
+
         const response = await fetch("/api/generate-ebook", {
           method: "POST",
           headers: {
@@ -619,6 +666,7 @@
 
     document.getElementById("resetBtn").addEventListener("click", function() {
       form.reset();
+      applyInputModeUI();
       lastData = null;
       resetInteriorImages();
       resetCoverImage();
@@ -630,6 +678,55 @@
       const element = document.getElementById(id);
       if (!element) return "";
       return (element.value || "").trim();
+    }
+
+    function setFieldValue(id, value) {
+      const element = document.getElementById(id);
+      if (!element) return;
+      element.value = typeof value === "string" ? value : "";
+    }
+
+    function applyInputModeUI() {
+      const inputMode = getValue("inputMode") || "manual";
+      const manualMode = inputMode === "manual";
+      const hint = document.getElementById("inputModeHint");
+      const audienceInput = document.getElementById("audience");
+      const promiseInput = document.getElementById("promise");
+
+      audienceInput.required = manualMode;
+      promiseInput.required = manualMode;
+
+      hint.textContent = manualMode
+        ? "Manual mode: you set audience, promise, and details."
+        : "AI Fill mode: enter topic only, then AI auto-fills the rest before generation.";
+    }
+
+    function normalizeSuggestedInputPayload(data) {
+      return {
+        audience: cleanSuggestedValue(data.audience),
+        promise: cleanSuggestedValue(data.promise),
+        customProductBrief: cleanSuggestedValue(data.customProductBrief),
+        coverSubtitle: cleanSuggestedValue(data.coverSubtitle),
+        style: cleanSuggestedValue(data.style),
+        price: cleanSuggestedValue(data.price),
+        depth: cleanSuggestedValue(data.depth),
+        visualDensity: cleanSuggestedValue(data.visualDensity)
+      };
+    }
+
+    function cleanSuggestedValue(value) {
+      return typeof value === "string" ? value.trim() : "";
+    }
+
+    function applySuggestedInputValues(data) {
+      if (data.audience) setFieldValue("audience", data.audience);
+      if (data.promise) setFieldValue("promise", data.promise);
+      if (data.customProductBrief) setFieldValue("customProductBrief", data.customProductBrief);
+      if (data.coverSubtitle) setFieldValue("coverSubtitle", data.coverSubtitle);
+      if (data.style) setFieldValue("style", data.style);
+      if (data.price) setFieldValue("price", data.price);
+      if (data.depth) setFieldValue("depth", data.depth);
+      if (data.visualDensity) setFieldValue("visualDensity", data.visualDensity);
     }
 
     function showLoading() {

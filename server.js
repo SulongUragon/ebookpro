@@ -70,6 +70,111 @@ async function createTextResponseWithFallback(input) {
   }
 }
 
+function normalizeSuggestedInputs(raw, context = {}) {
+  const creationMode = context.creationMode || "Sellable Digital Product";
+  const language = context.language || "English";
+
+  const fallbackAudience = creationMode === "Personal Guide / Workbook"
+    ? "Beginners and busy professionals who want practical step-by-step execution"
+    : "Creators, coaches, freelancers, and beginners who want to sell digital products";
+
+  const fallbackPromise = creationMode === "Personal Guide / Workbook"
+    ? "Build a clear personal action plan and execute it in simple daily steps"
+    : "Build and sell their first digital product with confidence";
+
+  const styleOptions = new Set([
+    "Luxury Black and Gold",
+    "Clean Minimalist Premium",
+    "Bold Creator Brand",
+    "Modern Agency Style",
+    "California Creator Brand",
+    "Filipino Digital Seller Style"
+  ]);
+
+  const depthOptions = new Set([
+    "Premium Paid Ebook",
+    "Workbook Toolkit",
+    "Lead Magnet",
+    "Course Companion",
+    "Authority Guide"
+  ]);
+
+  const densityOptions = new Set(["Minimal", "Balanced", "Rich"]);
+
+  const safe = (value, fallback = "") => {
+    if (typeof value !== "string") return fallback;
+    const trimmed = value.trim();
+    return trimmed || fallback;
+  };
+
+  const style = safe(raw?.style, "Luxury Black and Gold");
+  const depth = safe(raw?.depth, "Premium Paid Ebook");
+  const visualDensity = safe(raw?.visualDensity, "Minimal");
+
+  return {
+    audience: safe(raw?.audience, fallbackAudience),
+    promise: safe(raw?.promise, fallbackPromise),
+    customProductBrief: safe(raw?.customProductBrief, ""),
+    coverSubtitle: safe(
+      raw?.coverSubtitle,
+      creationMode === "Personal Guide / Workbook"
+        ? "Your step-by-step action guide for fast progress"
+        : "Create, Package, and Launch Your First Sellable Digital Product in 30 Days"
+    ),
+    style: styleOptions.has(style) ? style : "Luxury Black and Gold",
+    price: safe(raw?.price, creationMode === "Personal Guide / Workbook" ? "$17" : "$27"),
+    depth: depthOptions.has(depth) ? depth : "Premium Paid Ebook",
+    visualDensity: densityOptions.has(visualDensity) ? visualDensity : "Minimal",
+    language
+  };
+}
+
+app.post("/api/suggest-inputs", async (req, res) => {
+  try {
+    const {
+      topic,
+      creationMode = "Sellable Digital Product",
+      language = "English"
+    } = req.body;
+
+    if (!topic) {
+      return res.status(400).json({
+        error: "Topic is required."
+      });
+    }
+
+    const prompt = buildInputAutofillPrompt({
+      topic,
+      creationMode,
+      language
+    });
+
+    const { response, usedModel, usedFallback } = await createTextResponseWithFallback(prompt);
+    const json = extractJson(response.output_text);
+    const normalized = normalizeSuggestedInputs(json, {
+      creationMode,
+      language
+    });
+
+    res.json({
+      ...normalized,
+      meta: {
+        textModel: usedModel,
+        usedFallbackModel: usedFallback
+      }
+    });
+  } catch (error) {
+    console.error("Suggest input generation error:", error);
+
+    const status = isQuotaError(error) ? 429 : 500;
+
+    res.status(status).json({
+      error: getFriendlyApiErrorMessage(error, "Failed to generate suggested form inputs."),
+      details: String(error?.message || "Unknown error")
+    });
+  }
+});
+
 app.post("/api/generate-ebook", async (req, res) => {
   try {
     const {
@@ -545,6 +650,37 @@ CONTENT REQUIREMENTS:
 - Include chapter image prompts.
 - Include sales assets.
 - Make the ebook feel like a complete paid digital product package.
+`;
+}
+
+function buildInputAutofillPrompt(input) {
+  return `
+You are a premium digital product strategist.
+
+Generate practical form values for an ebook generator based on topic.
+
+INPUT:
+Topic: ${input.topic}
+Creation Mode: ${input.creationMode}
+Language: ${input.language}
+
+OUTPUT RULES:
+- Return ONLY valid JSON.
+- No markdown, no code fences.
+- Use concise but specific copy.
+- Keep values commercially usable.
+
+Return this exact JSON shape:
+{
+  "audience": "...",
+  "promise": "...",
+  "customProductBrief": "...",
+  "coverSubtitle": "...",
+  "style": "Luxury Black and Gold OR Clean Minimalist Premium OR Bold Creator Brand OR Modern Agency Style OR California Creator Brand OR Filipino Digital Seller Style",
+  "price": "$17 or $27 or $47",
+  "depth": "Premium Paid Ebook OR Workbook Toolkit OR Lead Magnet OR Course Companion OR Authority Guide",
+  "visualDensity": "Minimal OR Balanced OR Rich"
+}
 `;
 }
 
