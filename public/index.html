@@ -18,17 +18,12 @@
 
       <form id="ebookForm" class="space-y-4">
         <div>
-          <label class="font-bold text-sm">Input Mode</label>
-          <select id="inputMode" class="w-full mt-1 border rounded-xl p-3">
-            <option value="manual" selected>Manual Fill (I will complete form)</option>
-            <option value="ai-topic-only">AI Fill (Topic only)</option>
-          </select>
-          <p id="inputModeHint" class="text-xs text-slate-500 mt-2">Manual mode: you set audience, promise, and details.</p>
-        </div>
-
-        <div>
           <label class="font-bold text-sm">Ebook Topic</label>
           <input id="topic" required class="w-full mt-1 border rounded-xl p-3" placeholder="Digital Product Business">
+          <button id="aiFillBtn" type="button" class="w-full mt-2 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl p-3 text-sm">
+            AI Fill Form from Topic
+          </button>
+          <p class="text-xs text-slate-500 mt-2">Click AI Fill to auto-complete fields, then edit anything before Generate Ebook Package.</p>
         </div>
 
         <div>
@@ -294,17 +289,57 @@
     const generateBundleBtn = document.getElementById("generateBundleBtn");
     const generateInteriorImagesBtn = document.getElementById("generateInteriorImagesBtn");
     const saveAllFolderBtn = document.getElementById("saveAllFolderBtn");
-    const inputModeSelect = document.getElementById("inputMode");
+    const aiFillBtn = document.getElementById("aiFillBtn");
 
-    inputModeSelect.addEventListener("change", applyInputModeUI);
-    applyInputModeUI();
+    aiFillBtn.addEventListener("click", async function() {
+      const topic = getValue("topic");
+
+      if (!topic) {
+        alert("Please enter a topic first.");
+        return;
+      }
+
+      aiFillBtn.disabled = true;
+      aiFillBtn.textContent = "AI filling form...";
+
+      try {
+        const response = await fetch("/api/suggest-inputs", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            topic,
+            creationMode: getValue("creationMode") || "Sellable Digital Product",
+            language: getValue("language") || "English"
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.details || data.error || "Failed to generate AI form values.");
+        }
+
+        const suggestedPayload = normalizeSuggestedInputPayload(data);
+        applySuggestedInputValues(suggestedPayload);
+        alert("AI filled the form. You can edit any field before generating.");
+      } catch (error) {
+        const message = String(error.message || "");
+        const isQuotaError = /quota|rate limit|429|insufficient/i.test(message);
+        alert(isQuotaError
+          ? "AI Fill Error: OpenAI limit reached. Try again in a few minutes."
+          : "AI Fill Error: " + error.message);
+      } finally {
+        aiFillBtn.disabled = false;
+        aiFillBtn.textContent = "AI Fill Form from Topic";
+      }
+    });
 
     form.addEventListener("submit", async function(event) {
       event.preventDefault();
 
-      const inputMode = getValue("inputMode") || "manual";
-
-      let payload = {
+      const payload = {
         topic: getValue("topic"),
         creationMode: getValue("creationMode") || "Sellable Digital Product",
         audience: getValue("audience"),
@@ -326,33 +361,6 @@
       showLoading();
 
       try {
-        if (inputMode === "ai-topic-only") {
-          const suggestionResponse = await fetch("/api/suggest-inputs", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              topic: payload.topic,
-              creationMode: payload.creationMode,
-              language: payload.language
-            })
-          });
-
-          const suggestionData = await suggestionResponse.json();
-
-          if (!suggestionResponse.ok) {
-            throw new Error(suggestionData.details || suggestionData.error || "Failed to generate AI form values.");
-          }
-
-          const suggestedPayload = normalizeSuggestedInputPayload(suggestionData);
-          applySuggestedInputValues(suggestedPayload);
-          payload = {
-            ...payload,
-            ...suggestedPayload
-          };
-        }
-
         const response = await fetch("/api/generate-ebook", {
           method: "POST",
           headers: {
@@ -666,7 +674,6 @@
 
     document.getElementById("resetBtn").addEventListener("click", function() {
       form.reset();
-      applyInputModeUI();
       lastData = null;
       resetInteriorImages();
       resetCoverImage();
@@ -684,21 +691,6 @@
       const element = document.getElementById(id);
       if (!element) return;
       element.value = typeof value === "string" ? value : "";
-    }
-
-    function applyInputModeUI() {
-      const inputMode = getValue("inputMode") || "manual";
-      const manualMode = inputMode === "manual";
-      const hint = document.getElementById("inputModeHint");
-      const audienceInput = document.getElementById("audience");
-      const promiseInput = document.getElementById("promise");
-
-      audienceInput.required = manualMode;
-      promiseInput.required = manualMode;
-
-      hint.textContent = manualMode
-        ? "Manual mode: you set audience, promise, and details."
-        : "AI Fill mode: enter topic only, then AI auto-fills the rest before generation.";
     }
 
     function normalizeSuggestedInputPayload(data) {
