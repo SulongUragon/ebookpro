@@ -9,9 +9,66 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+const OPENAI_TEXT_MODEL = process.env.OPENAI_MODEL || "gpt-5.5";
+const OPENAI_TEXT_FALLBACK_MODEL = process.env.OPENAI_FALLBACK_MODEL || "gpt-4.1-mini";
+const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1";
+
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
 app.use(express.static("public"));
+
+function getErrorStatus(error) {
+  return Number(error?.status || error?.code || 0);
+}
+
+function isQuotaError(error) {
+  const message = String(error?.message || "");
+  const status = getErrorStatus(error);
+  return status === 429 || /quota|rate limit|insufficient/i.test(message);
+}
+
+function getFriendlyApiErrorMessage(error, fallbackMessage) {
+  if (isQuotaError(error)) {
+    return "OpenAI quota/rate limit reached. Try again in a few minutes or lower usage settings.";
+  }
+
+  return fallbackMessage;
+}
+
+async function createTextResponseWithFallback(input) {
+  try {
+    const primary = await client.responses.create({
+      model: OPENAI_TEXT_MODEL,
+      input
+    });
+
+    return {
+      response: primary,
+      usedModel: OPENAI_TEXT_MODEL,
+      usedFallback: false
+    };
+  } catch (error) {
+    const canFallback =
+      isQuotaError(error) &&
+      OPENAI_TEXT_FALLBACK_MODEL &&
+      OPENAI_TEXT_FALLBACK_MODEL !== OPENAI_TEXT_MODEL;
+
+    if (!canFallback) {
+      throw error;
+    }
+
+    const fallback = await client.responses.create({
+      model: OPENAI_TEXT_FALLBACK_MODEL,
+      input
+    });
+
+    return {
+      response: fallback,
+      usedModel: OPENAI_TEXT_FALLBACK_MODEL,
+      usedFallback: true
+    };
+  }
+}
 
 app.post("/api/generate-ebook", async (req, res) => {
   try {
@@ -49,21 +106,26 @@ app.post("/api/generate-ebook", async (req, res) => {
       visualDensity
     });
 
-    const response = await client.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5.5",
-      input: prompt
-    });
+    const { response, usedModel, usedFallback } = await createTextResponseWithFallback(prompt);
 
     const text = response.output_text;
     const json = extractJson(text);
 
-    res.json(json);
+    res.json({
+      ...json,
+      meta: {
+        textModel: usedModel,
+        usedFallbackModel: usedFallback
+      }
+    });
   } catch (error) {
     console.error("Ebook generation error:", error);
 
-    res.status(500).json({
-      error: "Failed to generate ebook.",
-      details: error.message
+    const status = isQuotaError(error) ? 429 : 500;
+
+    res.status(status).json({
+      error: getFriendlyApiErrorMessage(error, "Failed to generate ebook."),
+      details: String(error?.message || "Unknown error")
     });
   }
 });
@@ -97,7 +159,7 @@ app.post("/api/generate-cover", async (req, res) => {
     });
 
     const image = await client.images.generate({
-      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
+      model: OPENAI_IMAGE_MODEL,
       prompt: finalPrompt,
       size: "1024x1536"
     });
@@ -114,9 +176,11 @@ app.post("/api/generate-cover", async (req, res) => {
   } catch (error) {
     console.error("Cover generation error:", error);
 
-    res.status(500).json({
-      error: "Failed to generate cover image.",
-      details: error.message
+    const status = isQuotaError(error) ? 429 : 500;
+
+    res.status(status).json({
+      error: getFriendlyApiErrorMessage(error, "Failed to generate cover image."),
+      details: String(error?.message || "Unknown error")
     });
   }
 });
@@ -161,22 +225,27 @@ app.post("/api/generate-bundle-assets", async (req, res) => {
       subtitle
     });
 
-    const response = await client.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5.5",
-      input: prompt
-    });
+    const { response, usedModel, usedFallback } = await createTextResponseWithFallback(prompt);
 
     const text = response.output_text;
     const json = extractJson(text);
     const normalized = normalizeBundleAssetsByCreationMode(json, creationMode);
 
-    res.json(normalized);
+    res.json({
+      ...normalized,
+      meta: {
+        textModel: usedModel,
+        usedFallbackModel: usedFallback
+      }
+    });
   } catch (error) {
     console.error("Bundle assets generation error:", error);
 
-    res.status(500).json({
-      error: "Failed to generate bundle assets.",
-      details: error.message
+    const status = isQuotaError(error) ? 429 : 500;
+
+    res.status(status).json({
+      error: getFriendlyApiErrorMessage(error, "Failed to generate bundle assets."),
+      details: String(error?.message || "Unknown error")
     });
   }
 });
@@ -219,12 +288,24 @@ app.post("/api/generate-interior-images", async (req, res) => {
 
     const images = [];
 
+    let quotaLimited = false;
+
     for (const item of plan) {
-      const image = await client.images.generate({
-        model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
-        prompt: item.prompt,
-        size: "1024x1024"
-      });
+      let image;
+
+      try {
+        image = await client.images.generate({
+          model: OPENAI_IMAGE_MODEL,
+          prompt: item.prompt,
+          size: "1024x1024"
+        });
+      } catch (error) {
+        if (isQuotaError(error)) {
+          quotaLimited = true;
+          break;
+        }
+        throw error;
+      }
 
       const base64Image = image.data?.[0]?.b64_json;
 
@@ -242,18 +323,19 @@ app.post("/api/generate-interior-images", async (req, res) => {
     res.json({
       visualDensity,
       totalImages: images.length,
-      images
+      images,
+      quotaLimited
     });
   } catch (error) {
     console.error("Interior image generation error:", error);
 
     const message = String(error?.message || "");
-    const status = Number(error?.status || error?.code || 0);
-    const isQuotaError = status === 429 || /quota|rate limit|insufficient/i.test(message);
+    const status = getErrorStatus(error);
+    const quotaError = isQuotaError(error);
 
-    res.status(isQuotaError ? 429 : 500).json({
-      error: isQuotaError
-        ? "Quota or rate limit reached while generating interior images."
+    res.status(quotaError ? 429 : 500).json({
+      error: quotaError
+        ? "OpenAI quota/rate limit reached while generating interior images."
         : "Failed to generate interior images.",
       details: message
     });

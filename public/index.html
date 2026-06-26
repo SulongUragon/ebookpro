@@ -326,7 +326,11 @@
         renderData(data);
         showResults();
       } catch (error) {
-        alert("Error: " + error.message);
+        const message = String(error.message || "");
+        const isQuotaError = /quota|rate limit|429|insufficient/i.test(message);
+        alert(isQuotaError
+          ? "Error: OpenAI limit reached. Tipid mode muna: use lower usage settings or try again in a few minutes."
+          : "Error: " + error.message);
         showEmpty();
       } finally {
         setGenerating(false);
@@ -372,6 +376,10 @@
 
         lastInteriorImages = data.images || [];
         applyInteriorImagesToChapterCards();
+
+        if (data.quotaLimited) {
+          alert("Interior images generated partially because OpenAI limit was reached. You can try again later for the remaining images.");
+        }
       } catch (error) {
         const message = String(error.message || "");
         const isQuotaError = /quota|rate limit|429|insufficient/i.test(message);
@@ -429,7 +437,11 @@
         downloadBtn.href = data.imageUrl;
         downloadBtn.classList.remove("hidden");
       } catch (error) {
-        alert("Cover Error: " + error.message);
+        const message = String(error.message || "");
+        const isQuotaError = /quota|rate limit|429|insufficient/i.test(message);
+        alert(isQuotaError
+          ? "Cover Error: OpenAI limit reached. Try again in a few minutes or generate text assets first."
+          : "Cover Error: " + error.message);
       } finally {
         button.disabled = false;
         button.textContent = "Generate Actual Cover Image";
@@ -482,7 +494,11 @@
         lastBundleData = data;
         renderBundleAssets(data);
       } catch (error) {
-        alert("Bundle Error: " + error.message);
+        const message = String(error.message || "");
+        const isQuotaError = /quota|rate limit|429|insufficient/i.test(message);
+        alert(isQuotaError
+          ? "Bundle Error: OpenAI limit reached. Try again in a few minutes."
+          : "Bundle Error: " + error.message);
       } finally {
         button.disabled = false;
         button.textContent = "Generate Bundle Assets";
