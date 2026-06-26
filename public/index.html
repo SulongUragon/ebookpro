@@ -391,10 +391,18 @@
       } catch (error) {
         const message = String(error.message || "");
         const isQuotaError = /quota|rate limit|429|insufficient/i.test(message);
-        alert(isQuotaError
-          ? "Error: OpenAI limit reached. Tipid mode muna: use lower usage settings or try again in a few minutes."
-          : "Error: " + error.message);
-        showEmpty();
+
+        if (isQuotaError) {
+          lastData = buildLocalEbookPackage(payload);
+          resetInteriorImages();
+          resetCoverImage();
+          renderData(lastData);
+          showResults();
+          alert("OpenAI limit reached. Generated a Local Draft package instead. You can continue editing and exporting.");
+        } else {
+          alert("Error: " + error.message);
+          showEmpty();
+        }
       } finally {
         setGenerating(false);
       }
@@ -751,6 +759,146 @@
         price: sellable ? "$27" : "$17",
         depth: sellable ? "Premium Paid Ebook" : "Workbook Toolkit",
         visualDensity: "Minimal"
+      };
+    }
+
+    function buildLocalEbookPackage(payload) {
+      const topic = (payload.topic || "Digital Product").trim();
+      const creationMode = payload.creationMode || "Sellable Digital Product";
+      const audience = payload.audience || "Beginners and creators";
+      const promise = payload.promise || "Get practical results with a step-by-step guide";
+      const subtitle = payload.coverSubtitle || ("A practical guide to " + topic);
+      const title = "The " + topic + " Playbook";
+
+      const chapterTitles = [
+        "Foundation and Goal Setting",
+        "Audience and Market Fit",
+        "Offer and Structure",
+        "Execution Workflow",
+        "Launch and Distribution",
+        "Optimization and Scaling"
+      ];
+
+      const chapters = chapterTitles.map(function(name, index) {
+        const chapterNumber = index + 1;
+        return {
+          chapterNumber,
+          chapterTitle: name,
+          chapterPromise: "Build measurable progress on " + topic + " with practical action.",
+          keyPoints: [
+            "Clear objective for this chapter",
+            "Action checklist and examples",
+            "Common mistakes and fixes"
+          ],
+          practicalTask: "Complete the worksheet and apply one action within 24 hours.",
+          worksheetIdea: "Track implementation progress and quick wins.",
+          aiImagePrompt: "Minimal modern ebook interior illustration about " + topic + ", chapter " + chapterNumber
+        };
+      });
+
+      return {
+        strategy: {
+          bestAngle: creationMode === "Personal Guide / Workbook"
+            ? "Personal execution roadmap"
+            : "Sellable transformation-focused product",
+          targetBuyer: audience,
+          primaryPromise: promise
+        },
+        titles: {
+          selectedTitle: title,
+          selectedSubtitle: subtitle,
+          titleOptions: [
+            title,
+            topic + " Starter Blueprint",
+            "The Practical " + topic + " Guide"
+          ]
+        },
+        coverConcept: {
+          visualTheme: "Clean editorial style with strong title hierarchy",
+          titlePlacement: "Centered",
+          subtitlePlacement: "Below title",
+          backgroundStyle: "Minimal textured gradient",
+          fontDirection: "Bold sans-serif",
+          imageIdea: "Symbolic visual tied to " + topic,
+          mood: "Confident and practical",
+          buyerAttractionReason: "Clear promise and premium readability",
+          colorPalette: [
+            { name: "Ink", hex: "#0f172a" },
+            { name: "Accent", hex: "#1d4ed8" },
+            { name: "Soft", hex: "#e2e8f0" }
+          ],
+          aiCoverPrompt: "Premium ebook cover for " + topic + ", clean modern layout, high readability title and subtitle"
+        },
+        visualIdentity: {
+          brandFeel: "Premium but accessible",
+          fontPairing: "Bold sans + clean sans",
+          iconStyle: "Simple line icons",
+          illustrationStyle: "Minimal geometric",
+          photoStyle: "Neutral professional",
+          pageLayoutStyle: "Readable sections with white space",
+          sectionDividerStyle: "Thin accent rules",
+          calloutBoxStyle: "Soft panel cards",
+          quoteBoxStyle: "Muted left border",
+          worksheetStyle: "Checklist and table blocks",
+          premiumDesignRules: [
+            "Use consistent spacing",
+            "Keep heading hierarchy clear",
+            "Prioritize readability"
+          ]
+        },
+        tableOfContents: chapters.map(function(chapter) {
+          return {
+            chapterTitle: "Chapter " + chapter.chapterNumber + ": " + chapter.chapterTitle,
+            readerOutcome: chapter.chapterPromise
+          };
+        }),
+        chapters,
+        frameworks: [
+          {
+            name: "Goal-to-Action Framework",
+            purpose: "Turn goals into weekly execution",
+            visualLayout: "4-step ladder",
+            explanation: "Define target, milestones, actions, and review cycle.",
+            howToUse: "Fill each step and review every week.",
+            designDirection: "Simple diagram",
+            aiGraphicPrompt: "Minimal framework diagram for goal planning"
+          }
+        ],
+        worksheets: [
+          {
+            title: "Weekly Execution Planner",
+            type: "Planner",
+            purpose: "Plan and track weekly tasks",
+            instructions: "Set top 3 priorities and complete daily check-ins.",
+            fields: ["Goal", "Tasks", "Deadline", "Status"],
+            designNotes: "Clean table layout"
+          }
+        ],
+        salesAssets: {
+          productDescription: "A practical guide to help readers implement " + topic + " with clear steps.",
+          shortSalesCaption: "Build faster results with this practical " + topic + " playbook.",
+          longSalesCaption: "This package includes framework-based chapters, worksheets, and clear action plans.",
+          landingPageHeadline: "Master " + topic + " with a practical step-by-step guide",
+          landingPageSubheadline: "Built for action, not information overload.",
+          bulletBenefits: [
+            "Clear chapter-by-chapter roadmap",
+            "Worksheets for implementation",
+            "Ready-to-use framework"
+          ],
+          bonusIdeas: ["Quick-start checklist", "30-day tracker"],
+          launchPost: "Launch day: practical guide now available.",
+          dmSalesScript: "Hi, I made a practical " + topic + " guide. Want the details?"
+        },
+        bundleAssets: {},
+        finalPages: {
+          welcomeLetter: "Welcome to your practical guide.",
+          howToUseThisEbook: "Follow each chapter and apply the worksheet tasks.",
+          quickWinSection: "Complete chapter 1 task today.",
+          finalActionPlan: ["Pick one goal", "Schedule weekly actions", "Review progress weekly"],
+          closingMessage: "Consistency beats intensity.",
+          finalCTA: "Apply this system now.",
+          backCoverCopy: "A practical, implementation-first ebook package."
+        }
       };
     }
 
