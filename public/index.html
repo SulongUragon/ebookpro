@@ -327,9 +327,17 @@
       } catch (error) {
         const message = String(error.message || "");
         const isQuotaError = /quota|rate limit|429|insufficient/i.test(message);
-        alert(isQuotaError
-          ? "AI Fill Error: OpenAI limit reached. Try again in a few minutes."
-          : "AI Fill Error: " + error.message);
+
+        if (isQuotaError) {
+          const localSuggestion = buildLocalAutofillFromTopic(
+            topic,
+            getValue("creationMode") || "Sellable Digital Product"
+          );
+          applySuggestedInputValues(localSuggestion);
+          alert("OpenAI limit reached. Applied Local Smart Fill instead. You can still edit everything before generating.");
+        } else {
+          alert("AI Fill Error: " + error.message);
+        }
       } finally {
         aiFillBtn.disabled = false;
         aiFillBtn.textContent = "AI Fill Form from Topic";
@@ -719,6 +727,31 @@
       if (data.price) setFieldValue("price", data.price);
       if (data.depth) setFieldValue("depth", data.depth);
       if (data.visualDensity) setFieldValue("visualDensity", data.visualDensity);
+    }
+
+    function buildLocalAutofillFromTopic(topic, creationMode) {
+      const normalizedTopic = (topic || "").trim();
+      const titleTopic = normalizedTopic || "Digital Product";
+      const sellable = creationMode !== "Personal Guide / Workbook";
+
+      return {
+        audience: sellable
+          ? "Creators, coaches, freelancers, and beginners who want practical results"
+          : "Beginners and busy professionals who want clear step-by-step execution",
+        promise: sellable
+          ? "Build and launch a practical digital product around " + titleTopic + ""
+          : "Create a simple personal action plan for " + titleTopic + " and follow through",
+        customProductBrief: sellable
+          ? "Include beginner-friendly templates, checklists, and 30-day implementation steps focused on " + titleTopic + "."
+          : "Focus on practical worksheets, weekly planning, and reflection prompts for " + titleTopic + ".",
+        coverSubtitle: sellable
+          ? "Create, Package, and Launch Your " + titleTopic + " Offer"
+          : "Your step-by-step personal guide to " + titleTopic + "",
+        style: "Clean Minimalist Premium",
+        price: sellable ? "$27" : "$17",
+        depth: sellable ? "Premium Paid Ebook" : "Workbook Toolkit",
+        visualDensity: "Minimal"
+      };
     }
 
     function showLoading() {
